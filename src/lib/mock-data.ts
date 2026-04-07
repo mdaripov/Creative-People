@@ -80,6 +80,21 @@ export interface NextMonthPlan {
   items: string[];
 }
 
+export interface LinkedInPost {
+  id: string;
+  preview: string;
+  scheduledDate: string;
+  status: "published" | "scheduled" | "draft";
+  reach?: number;
+  engagement?: number;
+}
+
+export interface LinkedInStats {
+  published: number;
+  scheduled: number;
+  totalReach: number;
+}
+
 export interface ClientData {
   client: Client;
   contentPosts: ContentPost[];
@@ -91,6 +106,8 @@ export interface ClientData {
   subscriberGrowth: SubscriberGrowthData[];
   bestReel: BestReel;
   nextMonthPlan: NextMonthPlan;
+  linkedInPosts: LinkedInPost[];
+  linkedInStats: LinkedInStats;
 }
 
 export const clients: Client[] = [
@@ -103,10 +120,11 @@ export const clients: Client[] = [
 
 const makeData = (clientName: string): ClientData => {
   const client = clients.find((c) => c.name === clientName)!;
+
   return {
     client,
     contentPosts: [
-      { id: `${client.id}-p1`, type: "reel", topic: `Утренняя рутина с ${clientName}`, caption: `Начни день правильно!`, platform: "Instagram", date: "10 апр", approved: false },
+      { id: `${client.id}-p1`, type: "reel", topic: `Утренняя рутина с ${clientName}`, caption: "Начни день правильно!", platform: "Instagram", date: "10 апр", approved: false },
       { id: `${client.id}-p2`, type: "carousel", topic: "5 причин выбрать нас", caption: "Листай карточки 👉", platform: "Instagram", date: "13 апр", approved: false },
       { id: `${client.id}-p3`, type: "post", topic: "За кулисами", caption: "Смотри как создаётся качество", platform: "LinkedIn", date: "15 апр", approved: false },
       { id: `${client.id}-p4`, type: "story", topic: "Опрос", caption: "Голосуй!", platform: "Instagram", date: "17 апр", approved: false },
@@ -153,6 +171,33 @@ const makeData = (clientName: string): ClientData => {
     },
     nextMonthPlan: {
       items: ["Запустить серию GRWM", "Снять 2 коллаборации", "Увеличить частоту постов до 5 в неделю"],
+    },
+    linkedInPosts: [
+      {
+        id: `${client.id}-li-1`,
+        preview: `Как ${clientName} использует контент-маркетинг для роста узнаваемости бренда`,
+        scheduledDate: "18 апр, 10:00",
+        status: "draft",
+      },
+      {
+        id: `${client.id}-li-2`,
+        preview: `3 вывода из последней рекламной кампании ${clientName} и что они значат для B2B-аудитории`,
+        scheduledDate: "21 апр, 12:30",
+        status: "scheduled",
+      },
+      {
+        id: `${client.id}-li-3`,
+        preview: `Почему короткие форматы дают лучший first-touch для брендов в 2025`,
+        scheduledDate: "11 апр, 09:00",
+        status: "published",
+        reach: 12600,
+        engagement: 4.8,
+      },
+    ],
+    linkedInStats: {
+      published: 14,
+      scheduled: 6,
+      totalReach: 84200,
     },
   };
 };
