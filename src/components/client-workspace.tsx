@@ -11,15 +11,15 @@ import { ControllerTab } from "@/components/tabs/controller-tab";
 import type { ClientData } from "@/lib/mock-data";
 
 const tabs = [
+  { id: "trends", label: "ИИ Трендвотчер", icon: TrendingUp, color: "#38BDF8" },
   { id: "smm-chat", label: "ИИ СММ", icon: Sparkles, color: "#A78BFA" },
   { id: "smm-approved", label: "ИИ СММ (утверждено)", icon: FolderCheck, color: "#FBBF24" },
   { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "#38BDF8" },
-  { id: "trends", label: "ИИ Трендвотчер", icon: TrendingUp, color: "#38BDF8" },
   { id: "controller", label: "Контроллер", icon: BarChart3, color: "#34D399" },
 ];
 
 export function ClientWorkspace({ data }: { data: ClientData }) {
-  const [activeTab, setActiveTab] = useState("smm-chat");
+  const [activeTab, setActiveTab] = useState("trends");
 
   return (
     <div className="flex h-full flex-col animate-fade-in">
@@ -51,10 +51,10 @@ export function ClientWorkspace({ data }: { data: ClientData }) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
+        {activeTab === "trends" && <TrendwatcherTab data={data} />}
         {activeTab === "smm-chat" && <SmmChatTab data={data} />}
         {activeTab === "smm-approved" && <SmmApprovedTab data={data} />}
         {activeTab === "linkedin" && <LinkedInTab data={data} />}
-        {activeTab === "trends" && <TrendwatcherTab data={data} />}
         {activeTab === "controller" && <ControllerTab data={data} />}
       </div>
     </div>
