@@ -18,6 +18,7 @@ const quickPrompts = [
 
 export function MentorChatView() {
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<MentorMessage[]>([
     {
       id: "mentor-welcome",
@@ -26,20 +27,54 @@ export function MentorChatView() {
     },
   ]);
 
-  const handleSend = (value: string) => {
+  const handleSend = async (value: string) => {
     const text = value.trim();
-    if (!text) return;
+    if (!text || isLoading) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: "user", text },
-      {
-        id: `assistant-${Date.now() + 1}`,
-        role: "assistant",
-        text: "Интерфейс наставника готов. Позже сюда можно подключить реальные ответы, сценарии обучения и персональные рекомендации.",
-      },
-    ]);
+    const userMessage: MentorMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      text,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(import.meta.env.VITE_MENTOR_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+        }),
+      });
+
+      const data = await response.json();
+      const result = data.result || data.output || "";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now() + 1}`,
+          role: "assistant",
+          text: result,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now() + 1}`,
+          role: "assistant",
+          text: "Ошибка подключения. Попробуйте снова.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
