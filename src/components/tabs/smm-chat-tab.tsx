@@ -19,28 +19,63 @@ const starterPrompts = [
 
 export function SmmChatTab({ data }: { data: ClientData }) {
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "agent",
-      text: `Привет! Я ИИ SMM-агент для ${data.client.name}. Могу помочь с контент-планом, идеями, ТЗ и стратегией. Напишите задачу, а позже сюда можно будет подключить вашу реальную логику агента.`,
+      text: `Привет! Я ИИ SMM-агент для ${data.client.name}. Могу помочь с контент-планом, идеями, ТЗ и стратегией.`,
     },
   ]);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     const value = text.trim();
-    if (!value) return;
+    if (!value || isLoading) return;
+
+    const webhookUrl = process.env.NEXT_PUBLIC_CLIENT_WEBHOOK_URL;
 
     setMessages((prev) => [
       ...prev,
       { id: `user-${Date.now()}`, role: "user", text: value },
-      {
-        id: `agent-${Date.now() + 1}`,
-        role: "agent",
-        text: "Оболочка агента готова. Здесь позже можно подключить генерацию ответов, контент-планы, ТЗ и автоматические сценарии работы.",
-      },
     ]);
     setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(webhookUrl || "", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: value,
+          client_id: data.client.id,
+        }),
+      });
+
+      const responseData = await response.json();
+      const result = responseData.result || responseData.output || "";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `agent-${Date.now() + 1}`,
+          role: "agent",
+          text: result,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `agent-${Date.now() + 1}`,
+          role: "agent",
+          text: "Ошибка подключения. Попробуйте снова.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -140,7 +175,8 @@ export function SmmChatTab({ data }: { data: ClientData }) {
 
             <button
               onClick={() => handleSend(input)}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 text-[#A78BFA] transition-all duration-200 hover:bg-[#A78BFA]/20"
+              disabled={isLoading}
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 text-[#A78BFA] transition-all duration-200 hover:bg-[#A78BFA]/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Send className="h-4 w-4" />
             </button>
