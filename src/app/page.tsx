@@ -5,6 +5,7 @@ import { ClientSidebar } from "@/components/client-sidebar";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
 import { MentorChatView } from "@/components/mentor-chat-view";
+import { SupabaseClientPlaceholder } from "@/components/supabase-client-placeholder";
 import { allClientsData } from "@/lib/mock-data";
 import { Menu, Sparkles } from "lucide-react";
 
@@ -12,6 +13,7 @@ type MainView = "mentor" | "clients";
 
 export default function Home() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("clients");
 
@@ -20,8 +22,9 @@ export default function Home() {
       ? allClientsData[selectedClientId as keyof typeof allClientsData]
       : null;
 
-  const handleSelectClient = (id: string) => {
+  const handleSelectClient = (id: string, name?: string) => {
     setSelectedClientId(id);
+    setSelectedClientName(name ?? null);
     setMainView("clients");
     setSidebarOpen(false);
   };
@@ -100,6 +103,8 @@ export default function Home() {
               ? "ИИ СММ наставник"
               : selectedData
               ? selectedData.client.name
+              : selectedClientName
+              ? selectedClientName
               : "SMM Agency"}
           </span>
         </div>
@@ -109,6 +114,8 @@ export default function Home() {
             <MentorChatView />
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} />
+          ) : selectedClientId && selectedClientName ? (
+            <SupabaseClientPlaceholder clientName={selectedClientName} />
           ) : (
             <EmptyState />
           )}

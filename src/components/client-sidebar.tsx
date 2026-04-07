@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ClientSidebarProps {
   selectedClientId: string | null;
-  onSelectClient: (id: string) => void;
+  onSelectClient: (id: string, name?: string) => void;
 }
 
 type SupabaseClient = {
@@ -161,7 +161,7 @@ export function ClientSidebar({
               return (
                 <li key={client.id}>
                   <button
-                    onClick={() => onSelectClient(client.id)}
+                    onClick={() => onSelectClient(client.id, client.name)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
                       transition-all duration-200 group
