@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
 import { MentorChatView } from "@/components/mentor-chat-view";
-import { SupabaseClientPlaceholder } from "@/components/supabase-client-placeholder";
-import { allClientsData } from "@/lib/mock-data";
+import { allClientsData, createClientData } from "@/lib/mock-data";
 import { Menu, Sparkles } from "lucide-react";
 
 type MainView = "mentor" | "clients";
@@ -17,10 +16,19 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("clients");
 
-  const selectedData =
-    selectedClientId && selectedClientId in allClientsData
-      ? allClientsData[selectedClientId as keyof typeof allClientsData]
-      : null;
+  const selectedData = useMemo(() => {
+    if (!selectedClientId) return null;
+
+    if (selectedClientId in allClientsData) {
+      return allClientsData[selectedClientId as keyof typeof allClientsData];
+    }
+
+    if (selectedClientName) {
+      return createClientData(selectedClientId, selectedClientName);
+    }
+
+    return null;
+  }, [selectedClientId, selectedClientName]);
 
   const handleSelectClient = (id: string, name?: string) => {
     setSelectedClientId(id);
@@ -103,8 +111,6 @@ export default function Home() {
               ? "ИИ СММ наставник"
               : selectedData
               ? selectedData.client.name
-              : selectedClientName
-              ? selectedClientName
               : "SMM Agency"}
           </span>
         </div>
@@ -114,8 +120,6 @@ export default function Home() {
             <MentorChatView />
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} />
-          ) : selectedClientId && selectedClientName ? (
-            <SupabaseClientPlaceholder clientName={selectedClientName} />
           ) : (
             <EmptyState />
           )}

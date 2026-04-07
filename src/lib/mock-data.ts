@@ -118,8 +118,26 @@ export const clients: Client[] = [
   { id: "apple", name: "Apple", industry: "Технологии", status: "active", platforms: ["YouTube", "LinkedIn"], avatarColor: "#607D8B", lastActive: "1 час назад" },
 ];
 
-const makeData = (clientName: string): ClientData => {
-  const client = clients.find((c) => c.name === clientName)!;
+function getAvatarColor(name: string) {
+  const palette = ["#A78BFA", "#38BDF8", "#34D399", "#F472B6", "#F59E0B", "#8B5CF6"];
+  const index =
+    name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % palette.length;
+  return palette[index];
+}
+
+const makeData = (clientName: string, clientId?: string): ClientData => {
+  const existingClient = clients.find((c) => c.name === clientName);
+
+  const client: Client =
+    existingClient ?? {
+      id: clientId ?? clientName.toLowerCase().replace(/\s+/g, "-"),
+      name: clientName,
+      industry: "Клиент",
+      status: "active",
+      platforms: ["Instagram", "TikTok", "LinkedIn"],
+      avatarColor: getAvatarColor(clientName),
+      lastActive: "только что",
+    };
 
   return {
     client,
@@ -201,6 +219,10 @@ const makeData = (clientName: string): ClientData => {
     },
   };
 };
+
+export function createClientData(clientId: string, clientName: string): ClientData {
+  return makeData(clientName, clientId);
+}
 
 export const allClientsData: Record<string, ClientData> = {
   nike: makeData("Nike"),
