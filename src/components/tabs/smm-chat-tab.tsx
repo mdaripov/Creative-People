@@ -81,30 +81,17 @@ export function SmmChatTab({ data }: { data: ClientData }) {
 
   return (
     <div className="flex h-full flex-col animate-fade-in">
-      <div className="border-b border-[#1A1A1A] px-4 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-medium text-[#A78BFA]">
-              <Sparkles className="h-3.5 w-3.5" />
-              ИИ агент активен
-            </div>
-            <h3 className="text-lg font-semibold text-white">Чат с ИИ SMM-агентом</h3>
-            <p className="mt-1 max-w-2xl text-sm text-[#8B93A7]">
-              Используйте чат для постановки задач по контенту, креативам, ТЗ и публикациям.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {starterPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => handleSend(prompt)}
-                className="rounded-xl border border-[#222222] bg-[#141414] px-3 py-2 text-left text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
+      <div className="border-b border-[#1A1A1A] px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap gap-2">
+          {starterPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => handleSend(prompt)}
+              className="rounded-xl border border-[#222222] bg-[#141414] px-3 py-2 text-left text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white"
+            >
+              {prompt}
+            </button>
+          ))}
         </div>
       </div>
 
