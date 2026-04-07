@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bot, Send, Sparkles, User, Paperclip, Mic } from "lucide-react";
+import { ChatMessageContent } from "@/components/chat-message-content";
 import type { ClientData } from "@/lib/mock-data";
 
 interface Message {
@@ -126,11 +127,11 @@ export function SmmChatTab({ data }: { data: ClientData }) {
                 <div
                   className={`max-w-[85%] rounded-3xl px-4 py-3 sm:max-w-[70%] ${
                     isAgent
-                      ? "border border-[#1F2230] bg-[#14161C] text-[#E5E7EB]"
+                      ? "border border-[#1F2230] bg-[#14161C] text-[#E5E7EB] shadow-[0_0_0_1px_rgba(167,139,250,0.04)]"
                       : "border border-[#38BDF8]/20 bg-[#38BDF8]/10 text-white"
                   }`}
                 >
-                  <div className="mb-1 flex items-center gap-2">
+                  <div className="mb-2 flex items-center gap-2">
                     <span
                       className={`text-[11px] font-medium ${
                         isAgent ? "text-[#A78BFA]" : "text-[#7DD3FC]"
@@ -139,7 +140,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
                       {isAgent ? "ИИ SMM-агент" : "Вы"}
                     </span>
                   </div>
-                  <p className="text-sm leading-relaxed">{message.text}</p>
+                  <ChatMessageContent text={message.text} />
                 </div>
 
                 {!isAgent && (
