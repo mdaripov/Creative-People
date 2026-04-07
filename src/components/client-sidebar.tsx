@@ -1,0 +1,151 @@
+"use client";
+
+import { useState } from "react";
+import { Search, Plus, Zap } from "lucide-react";
+import { clients, type Client, type ClientStatus } from "@/lib/mock-data";
+
+interface ClientSidebarProps {
+  selectedClientId: string | null;
+  onSelectClient: (id: string) => void;
+}
+
+function StatusDot({ status }: { status: ClientStatus }) {
+  const colors: Record<ClientStatus, string> = {
+    active: "bg-[#34D399]",
+    paused: "bg-[#6B7280]",
+    review: "bg-[#FBBF24]",
+  };
+  return (
+    <span
+      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${colors[status]}`}
+    />
+  );
+}
+
+function ClientAvatar({ client }: { client: Client }) {
+  const initials = client.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+      style={{ backgroundColor: client.avatarColor }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+export function ClientSidebar({
+  selectedClientId,
+  onSelectClient,
+}: ClientSidebarProps) {
+  const [search, setSearch] = useState("");
+
+  const filtered = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="w-full flex flex-col h-full bg-[#111111] border-r border-[#1E1E1E]">
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-[#1E1E1E]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
+            <Zap className="w-4 h-4 text-black" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold text-white leading-tight">
+              SMM Agency
+            </h1>
+            <p className="text-[10px] text-[#6B7280] leading-tight">
+              AI-powered dashboard
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="px-4 py-3 border-b border-[#1E1E1E]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
+          <input
+            type="text"
+            placeholder="Поиск клиентов..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-[#6B7280] focus:outline-none focus:border-[#3A3A3A] transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Client list */}
+      <div className="flex-1 overflow-y-auto py-2">
+        <div className="px-3 py-2">
+          <p className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider px-2 mb-1">
+            Клиенты ({filtered.length})
+          </p>
+        </div>
+        <ul className="space-y-0.5 px-2">
+          {filtered.map((client) => {
+            const isSelected = selectedClientId === client.id;
+            return (
+              <li key={client.id}>
+                <button
+                  onClick={() => onSelectClient(client.id)}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
+                    transition-all duration-200 group
+                    ${
+                      isSelected
+                        ? "bg-white text-black"
+                        : "text-[#D1D5DB] hover:bg-[#1A1A1A] hover:text-white"
+                    }
+                  `}
+                >
+                  <ClientAvatar client={client} />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm font-medium truncate leading-tight ${
+                        isSelected ? "text-black" : "text-white"
+                      }`}
+                    >
+                      {client.name}
+                    </p>
+                    <p
+                      className={`text-[10px] truncate leading-tight mt-0.5 ${
+                        isSelected ? "text-[#555]" : "text-[#6B7280]"
+                      }`}
+                    >
+                      {client.industry}
+                    </p>
+                  </div>
+                  <StatusDot status={client.status} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {filtered.length === 0 && (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-[#6B7280]">Клиенты не найдены</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add client button */}
+      <div className="p-4 border-t border-[#1E1E1E]">
+        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#2A2A2A] text-[#6B7280] hover:border-[#3A3A3A] hover:text-white text-sm transition-all duration-200 group">
+          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+          Новый клиент
+        </button>
+      </div>
+    </div>
+  );
+}
