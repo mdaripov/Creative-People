@@ -17,6 +17,8 @@ const starterPrompts = [
   "Предложи 3 контент-рубрики",
 ];
 
+const WEBHOOK_URL = "https://n8n19643.hostkey.in/webhook/client-agent";
+
 export function SmmChatTab({ data }: { data: ClientData }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,8 +34,6 @@ export function SmmChatTab({ data }: { data: ClientData }) {
     const value = text.trim();
     if (!value || isLoading) return;
 
-    const webhookUrl = process.env.NEXT_PUBLIC_CLIENT_WEBHOOK_URL;
-
     setMessages((prev) => [
       ...prev,
       { id: `user-${Date.now()}`, role: "user", text: value },
@@ -42,7 +42,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(webhookUrl || "", {
+      const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
