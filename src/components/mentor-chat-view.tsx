@@ -31,6 +31,10 @@ export function MentorChatView() {
     const text = value.trim();
     if (!text || isLoading) return;
 
+    const webhookUrl =
+      process.env.NEXT_PUBLIC_MENTOR_WEBHOOK_URL ||
+      "https://n8n19643.hostkey.in/webhook/8aa0f5e4-74f0-4304-b5e5-116b147492d6";
+
     const userMessage: MentorMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -42,7 +46,7 @@ export function MentorChatView() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(import.meta.env.VITE_MENTOR_WEBHOOK_URL, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
