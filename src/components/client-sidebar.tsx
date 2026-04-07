@@ -1,13 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plus, Zap } from "lucide-react";
-import { clients, type Client, type ClientStatus } from "@/lib/mock-data";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Plus, Zap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientSidebarProps {
   selectedClientId: string | null;
   onSelectClient: (id: string) => void;
 }
+
+type SupabaseClient = {
+  id: string;
+  name: string;
+};
+
+type ClientStatus = "active" | "paused" | "review";
+
+type ClientListItem = {
+  id: string;
+  name: string;
+  industry: string;
+  status: ClientStatus;
+  avatarColor: string;
+};
 
 function StatusDot({ status }: { status: ClientStatus }) {
   const colors: Record<ClientStatus, string> = {
@@ -22,13 +37,14 @@ function StatusDot({ status }: { status: ClientStatus }) {
   );
 }
 
-function ClientAvatar({ client }: { client: Client }) {
+function ClientAvatar({ client }: { client: ClientListItem }) {
   const initials = client.name
     .split(" ")
     .map((w) => w[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
   return (
     <div
       className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
@@ -39,21 +55,57 @@ function ClientAvatar({ client }: { client: Client }) {
   );
 }
 
+function getAvatarColor(name: string) {
+  const palette = ["#A78BFA", "#38BDF8", "#34D399", "#F472B6", "#F59E0B", "#8B5CF6"];
+  const index =
+    name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % palette.length;
+  return palette[index];
+}
+
 export function ClientSidebar({
   selectedClientId,
   onSelectClient,
 }: ClientSidebarProps) {
   const [search, setSearch] = useState("");
+  const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.industry.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    const fetchClients = async () => {
+      setIsLoading(true);
+
+      const { data } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      const mappedClients: ClientListItem[] = (data ?? []).map((client: SupabaseClient) => ({
+        id: client.id,
+        name: client.name,
+        industry: "Клиент",
+        status: "active",
+        avatarColor: getAvatarColor(client.name),
+      }));
+
+      setClients(mappedClients);
+      setIsLoading(false);
+    };
+
+    fetchClients();
+  }, []);
+
+  const filtered = useMemo(
+    () =>
+      clients.filter(
+        (client) =>
+          client.name.toLowerCase().includes(search.toLowerCase()) ||
+          client.industry.toLowerCase().includes(search.toLowerCase())
+      ),
+    [clients, search]
   );
 
   return (
     <div className="w-full flex flex-col h-full bg-[#111111] border-r border-[#1E1E1E]">
-      {/* Logo */}
       <div className="px-5 py-5 border-b border-[#1E1E1E]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
@@ -70,7 +122,6 @@ export function ClientSidebar({
         </div>
       </div>
 
-      {/* Search */}
       <div className="px-4 py-3 border-b border-[#1E1E1E]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
@@ -84,62 +135,65 @@ export function ClientSidebar({
         </div>
       </div>
 
-      {/* Client list */}
       <div className="flex-1 overflow-y-auto py-2">
         <div className="px-3 py-2">
           <p className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider px-2 mb-1">
-            Клиенты ({filtered.length})
+            Клиенты ({isLoading ? 0 : filtered.length})
           </p>
         </div>
-        <ul className="space-y-0.5 px-2">
-          {filtered.map((client) => {
-            const isSelected = selectedClientId === client.id;
-            return (
-              <li key={client.id}>
-                <button
-                  onClick={() => onSelectClient(client.id)}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
-                    transition-all duration-200 group
-                    ${
-                      isSelected
-                        ? "bg-white text-black"
-                        : "text-[#D1D5DB] hover:bg-[#1A1A1A] hover:text-white"
-                    }
-                  `}
-                >
-                  <ClientAvatar client={client} />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm font-medium truncate leading-tight ${
-                        isSelected ? "text-black" : "text-white"
-                      }`}
-                    >
-                      {client.name}
-                    </p>
-                    <p
-                      className={`text-[10px] truncate leading-tight mt-0.5 ${
-                        isSelected ? "text-[#555]" : "text-[#6B7280]"
-                      }`}
-                    >
-                      {client.industry}
-                    </p>
-                  </div>
-                  <StatusDot status={client.status} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
 
-        {filtered.length === 0 && (
+        {isLoading ? (
+          <div className="px-5 py-8 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-[#6B7280] animate-spin" />
+          </div>
+        ) : filtered.length > 0 ? (
+          <ul className="space-y-0.5 px-2">
+            {filtered.map((client) => {
+              const isSelected = selectedClientId === client.id;
+              return (
+                <li key={client.id}>
+                  <button
+                    onClick={() => onSelectClient(client.id)}
+                    className={`
+                      w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
+                      transition-all duration-200 group
+                      ${
+                        isSelected
+                          ? "bg-white text-black"
+                          : "text-[#D1D5DB] hover:bg-[#1A1A1A] hover:text-white"
+                      }
+                    `}
+                  >
+                    <ClientAvatar client={client} />
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-sm font-medium truncate leading-tight ${
+                          isSelected ? "text-black" : "text-white"
+                        }`}
+                      >
+                        {client.name}
+                      </p>
+                      <p
+                        className={`text-[10px] truncate leading-tight mt-0.5 ${
+                          isSelected ? "text-[#555]" : "text-[#6B7280]"
+                        }`}
+                      >
+                        {client.industry}
+                      </p>
+                    </div>
+                    <StatusDot status={client.status} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
           <div className="px-5 py-8 text-center">
-            <p className="text-sm text-[#6B7280]">Клиенты не найдены</p>
+            <p className="text-sm text-[#6B7280]">Нет клиентов</p>
           </div>
         )}
       </div>
 
-      {/* Add client button */}
       <div className="p-4 border-t border-[#1E1E1E]">
         <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#2A2A2A] text-[#6B7280] hover:border-[#3A3A3A] hover:text-white text-sm transition-all duration-200 group">
           <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />

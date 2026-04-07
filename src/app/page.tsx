@@ -15,9 +15,10 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("clients");
 
-  const selectedData = selectedClientId
-    ? allClientsData[selectedClientId]
-    : null;
+  const selectedData =
+    selectedClientId && selectedClientId in allClientsData
+      ? allClientsData[selectedClientId as keyof typeof allClientsData]
+      : null;
 
   const handleSelectClient = (id: string) => {
     setSelectedClientId(id);
