@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, Plus, Zap, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ClientSidebarProps {
@@ -74,10 +75,17 @@ export function ClientSidebar({
     const fetchClients = async () => {
       setIsLoading(true);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("clients")
         .select("id, name")
         .order("name", { ascending: true });
+
+      if (error) {
+        toast.error("Не удалось загрузить клиентов");
+        setClients([]);
+        setIsLoading(false);
+        return;
+      }
 
       const mappedClients: ClientListItem[] = (data ?? []).map((client: SupabaseClient) => ({
         id: client.id,
