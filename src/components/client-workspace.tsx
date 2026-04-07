@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, TrendingUp } from "lucide-react";
+import { Sparkles, TrendingUp, BarChart3 } from "lucide-react";
 import { ClientHeader } from "@/components/client-header";
 import { SmmTab } from "@/components/tabs/smm-tab";
 import { TrendwatcherTab } from "@/components/tabs/trendwatcher-tab";
+import { ControllerTab } from "@/components/tabs/controller-tab";
 import type { ClientData } from "@/lib/mock-data";
 
 const tabs = [
   { id: "smm", label: "ИИ СММ", icon: Sparkles, color: "#A78BFA" },
   { id: "trends", label: "ИИ Трендвотчер", icon: TrendingUp, color: "#38BDF8" },
+  { id: "controller", label: "Контроллер", icon: BarChart3, color: "#34D399" },
 ];
 
 export function ClientWorkspace({ data }: { data: ClientData }) {
@@ -48,6 +50,7 @@ export function ClientWorkspace({ data }: { data: ClientData }) {
       <div className="flex-1 overflow-y-auto">
         {activeTab === "smm" && <SmmTab data={data} />}
         {activeTab === "trends" && <TrendwatcherTab data={data} />}
+        {activeTab === "controller" && <ControllerTab data={data} />}
       </div>
     </div>
   );
