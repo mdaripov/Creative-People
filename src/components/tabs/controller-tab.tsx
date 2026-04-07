@@ -341,7 +341,7 @@ export function ControllerTab({ data }: ControllerTabProps) {
             📋 План на следующий месяц
           </p>
           <div className="space-y-2">
-            {data.nextMonthPlan.map((item, i) => (
+            {data.nextMonthPlan.items.map((item, i) => (
               <div key={i} className="flex items-start gap-2.5">
                 <span
                   className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5"
