@@ -51,11 +51,12 @@ export function ClientWorkspace({ data }: { data: ClientData }) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === "trends" && <TrendwatcherTab data={data} />}
-        {activeTab === "smm-chat" && <SmmChatTab data={data} />}
-        {activeTab === "smm-approved" && <SmmApprovedTab data={data} />}
-        {activeTab === "linkedin" && <LinkedInTab data={data} />}
-        {activeTab === "controller" && <ControllerTab data={data} />}
+        {activeTab === "trends" && <TrendwatcherTab key={`trends-${data.client.id}`} data={data} />}
+        {activeTab === "smm-chat" && <SmmChatTab key={`smm-chat-${data.client.id}`} data={data} />}
+        {activeTab === "smm-approved" && <SmmApprovedTab key={`smm-approved-${data.client.id}`} data={data} />}
+        {activeTab === "linkedin" && <LinkedInTab key={`linkedin-${data.client.id}`} data={data} />}
+        {activeTab === "controller" && <ControllerTab key={`controller-${data.client.id}`} data={data} />}
+
       </div>
     </div>
   );
