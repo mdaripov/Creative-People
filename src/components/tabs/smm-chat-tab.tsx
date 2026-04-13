@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Send, Sparkles, User, Paperclip, Mic } from "lucide-react";
+import { Bot, Send, User, Paperclip, Mic, Star } from "lucide-react";
 import { ChatMessageContent } from "@/components/chat-message-content";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -9,6 +9,7 @@ interface Message {
   id: string;
   role: "agent" | "user";
   text: string;
+  approved?: boolean;
 }
 
 const starterPrompts = [
@@ -28,8 +29,17 @@ export function SmmChatTab({ data }: { data: ClientData }) {
       id: "welcome",
       role: "agent",
       text: `Привет! Я ИИ SMM-агент для ${data.client.name}. Могу помочь с контент-планом, идеями, ТЗ и стратегией.`,
+      approved: false,
     },
   ]);
+
+  const approveMessage = (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === messageId ? { ...message, approved: true } : message
+      )
+    );
+  };
 
   const handleSend = async (text: string) => {
     const value = text.trim();
@@ -63,6 +73,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
           id: `agent-${Date.now() + 1}`,
           role: "agent",
           text: result,
+          approved: false,
         },
       ]);
     } catch {
@@ -72,6 +83,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
           id: `agent-${Date.now() + 1}`,
           role: "agent",
           text: "Ошибка подключения. Попробуйте снова.",
+          approved: false,
         },
       ]);
     } finally {
@@ -118,7 +130,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
                       : "border border-[#38BDF8]/20 bg-[#38BDF8]/10 text-white"
                   }`}
                 >
-                  <div className="mb-2 flex items-center gap-2">
+                  <div className="mb-2 flex items-center justify-between gap-3">
                     <span
                       className={`text-[11px] font-medium ${
                         isAgent ? "text-[#A78BFA]" : "text-[#7DD3FC]"
@@ -126,6 +138,20 @@ export function SmmChatTab({ data }: { data: ClientData }) {
                     >
                       {isAgent ? "ИИ SMM-агент" : "Вы"}
                     </span>
+
+                    {isAgent && (
+                      <button
+                        onClick={() => approveMessage(message.id)}
+                        className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200 ${
+                          message.approved
+                            ? "border-[#FBBF24]/30 bg-[#FBBF24]/15 text-[#FBBF24]"
+                            : "border-[#2A2A2A] bg-[#181818] text-[#6B7280] hover:border-[#FBBF24]/30 hover:text-[#FBBF24]"
+                        }`}
+                        aria-label="Добавить в утверждено"
+                      >
+                        <Star className={`h-3.5 w-3.5 ${message.approved ? "fill-current" : ""}`} />
+                      </button>
+                    )}
                   </div>
                   <ChatMessageContent text={message.text} />
                 </div>
