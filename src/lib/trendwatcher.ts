@@ -126,29 +126,37 @@ export function unwrapStructuredValue(value: unknown): unknown {
   return value;
 }
 
-export function parseUnknownJson(value: string) {
-  const trimmed = value.trim();
+function decodeWrappedJsonString(value: string) {
+  let current = value.trim();
 
-  if (!trimmed) return value;
+  for (let i = 0; i < 4; i += 1) {
+    if (!current) return current;
 
-  if (
-    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("\"[") && trimmed.endsWith("]\"")) ||
-    (trimmed.startsWith("\"{") && trimmed.endsWith("}\""))
-  ) {
+    const looksJson =
+      (current.startsWith("[") && current.endsWith("]")) ||
+      (current.startsWith("{") && current.endsWith("}")) ||
+      (current.startsWith("\"[") && current.endsWith("]\"")) ||
+      (current.startsWith("\"{") && current.endsWith("}\""));
+
+    if (!looksJson) return current;
+
     try {
-      return JSON.parse(trimmed);
-    } catch {
-      try {
-        return JSON.parse(JSON.parse(trimmed));
-      } catch {
-        return value;
+      const parsed = JSON.parse(current);
+      if (typeof parsed === "string") {
+        current = parsed.trim();
+        continue;
       }
+      return parsed;
+    } catch {
+      return current;
     }
   }
 
-  return value;
+  return current;
+}
+
+export function parseUnknownJson(value: string) {
+  return decodeWrappedJsonString(value);
 }
 
 export function prettifyKey(key: string) {
@@ -188,6 +196,15 @@ export function prettifyKey(key: string) {
   return key
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function splitLongText(value: string) {
+  return value
+    .replace(/\\n/g, "\n")
+    .replace(/\s{2,}/g, " ")
+    .split(/\n{2,}|(?<=\.)\s+(?=[A-ZА-ЯЁ0-9«"(\[])/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export function formatObjectToRichText(value: Record<string, unknown>) {
@@ -238,7 +255,12 @@ export function formatObjectToRichText(value: Record<string, unknown>) {
       const label = prettifyKey(key);
 
       if (typeof raw === "string") {
-        return `**${label}:** ${raw}`;
+        const chunks = splitLongText(raw);
+        if (chunks.length <= 1) {
+          return `**${label}:** ${raw}`;
+        }
+
+        return `**${label}:**\n${chunks.map((chunk) => `- ${chunk}`).join("\n")}`;
       }
 
       if (Array.isArray(raw)) {
@@ -329,13 +351,14 @@ function derivePrimaryFocus(report: {
 
 function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
   if (typeof item === "string") {
+    const textChunks = splitLongText(item);
     return {
       id: `trend-${index}`,
-      title: `Тренд ${index + 1}`,
+      title: textChunks[0] || `Тренд ${index + 1}`,
       platform: "Все платформы",
       category: "Инсайт",
       freshness: "Без даты",
-      whyItMatters: item,
+      whyItMatters: textChunks.slice(1).join("\n\n") || item,
       source: "Не указан",
       priority: "medium",
       action: "Проверить у клиента",
@@ -347,13 +370,14 @@ function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
 
   if (!objectItem) {
     const rawText = String(item);
+    const textChunks = splitLongText(rawText);
     return {
       id: `trend-${index}`,
-      title: `Тренд ${index + 1}`,
+      title: textChunks[0] || `Тренд ${index + 1}`,
       platform: "Все платформы",
       category: "Инсайт",
       freshness: "Без даты",
-      whyItMatters: rawText,
+      whyItMatters: textChunks.slice(1).join("\n\n") || rawText,
       source: "Не указан",
       priority: "medium",
       action: "Проверить у клиента",
@@ -384,7 +408,7 @@ function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
     platform,
     category,
     freshness,
-    whyItMatters,
+    whyItMatters: splitLongText(whyItMatters).join("\n\n"),
     source,
     priority,
     action: actionByPriority(priority),
@@ -394,12 +418,13 @@ function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
 
 function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompetitorItem {
   if (typeof item === "string") {
+    const textChunks = splitLongText(item);
     return {
       id: `competitor-${index}`,
-      name: `Ориентир ${index + 1}`,
+      name: textChunks[0] || `Ориентир ${index + 1}`,
       platform: "Не указана",
       source: "Не указан",
-      observation: item,
+      observation: textChunks.slice(1).join("\n\n") || item,
       insight: "Нужна ручная интерпретация",
       recommendation: "Проверить и адаптировать под клиента",
       differentiation: "Не копировать напрямую",
@@ -411,12 +436,13 @@ function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompet
 
   if (!objectItem) {
     const rawText = String(item);
+    const textChunks = splitLongText(rawText);
     return {
       id: `competitor-${index}`,
-      name: `Ориентир ${index + 1}`,
+      name: textChunks[0] || `Ориентир ${index + 1}`,
       platform: "Не указана",
       source: "Не указан",
-      observation: rawText,
+      observation: textChunks.slice(1).join("\n\n") || rawText,
       insight: "Нужна ручная интерпретация",
       recommendation: "Проверить и адаптировать под клиента",
       differentiation: "Не копировать напрямую",
@@ -442,10 +468,10 @@ function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompet
     name,
     platform,
     source,
-    observation,
-    insight,
-    recommendation,
-    differentiation,
+    observation: splitLongText(observation).join("\n\n"),
+    insight: splitLongText(insight).join("\n\n"),
+    recommendation: splitLongText(recommendation).join("\n\n"),
+    differentiation: splitLongText(differentiation).join("\n\n"),
     rawText,
   };
 }
@@ -460,13 +486,14 @@ function deriveScenarioStatus(item: Record<string, unknown>) {
 
 function normalizeScenarioItem(item: unknown, index: number): NormalizedScenarioItem {
   if (typeof item === "string") {
+    const textChunks = splitLongText(item);
     return {
       id: `scenario-${index}`,
-      title: `Сценарий ${index + 1}`,
+      title: textChunks[0] || `Сценарий ${index + 1}`,
       format: "Не указан",
       platform: "Все платформы",
       hook: "",
-      structure: item,
+      structure: textChunks.slice(1).join("\n\n") || item,
       cta: "",
       expectedEffect: "",
       bullets: [],
@@ -479,13 +506,14 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
 
   if (!objectItem) {
     const rawText = String(item);
+    const textChunks = splitLongText(rawText);
     return {
       id: `scenario-${index}`,
-      title: `Сценарий ${index + 1}`,
+      title: textChunks[0] || `Сценарий ${index + 1}`,
       format: "Не указан",
       platform: "Все платформы",
       hook: "",
-      structure: rawText,
+      structure: textChunks.slice(1).join("\n\n") || rawText,
       cta: "",
       expectedEffect: "",
       bullets: [],
@@ -500,7 +528,15 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
     ...toArray(objectItem.items),
     ...toArray(objectItem.steps),
   ]
-    .map((bullet) => (typeof bullet === "string" ? bullet.trim() : formatObjectToRichText((bullet as Record<string, unknown>) || {})))
+    .map((bullet) => {
+      if (typeof bullet === "string") return bullet.trim();
+
+      if (typeof bullet === "object" && bullet) {
+        return formatObjectToRichText(bullet as Record<string, unknown>);
+      }
+
+      return String(bullet);
+    })
     .filter(Boolean);
 
   const rawText = formatObjectToRichText(objectItem);
@@ -510,10 +546,10 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
     title: firstNonEmpty(objectItem.title, objectItem.name, objectItem.topic) || `Сценарий ${index + 1}`,
     format: firstNonEmpty(objectItem.format, objectItem.type) || "Не указан",
     platform: firstNonEmpty(objectItem.platform, objectItem.channel) || "Все платформы",
-    hook: firstNonEmpty(objectItem.hook, objectItem.headline),
-    structure: firstNonEmpty(objectItem.script, objectItem.summary, objectItem.description) || rawText,
-    cta: firstNonEmpty(objectItem.cta, objectItem.recommendation),
-    expectedEffect: firstNonEmpty(objectItem.expected_result, objectItem.expectedEffect, objectItem.analysis),
+    hook: splitLongText(firstNonEmpty(objectItem.hook, objectItem.headline)).join("\n\n"),
+    structure: splitLongText(firstNonEmpty(objectItem.script, objectItem.summary, objectItem.description) || rawText).join("\n\n"),
+    cta: splitLongText(firstNonEmpty(objectItem.cta, objectItem.recommendation)).join("\n\n"),
+    expectedEffect: splitLongText(firstNonEmpty(objectItem.expected_result, objectItem.expectedEffect, objectItem.analysis)).join("\n\n"),
     bullets,
     status: deriveScenarioStatus(objectItem),
     rawText,
@@ -526,10 +562,12 @@ function getCollection(value: unknown) {
   if (Array.isArray(normalized)) return normalized;
 
   if (typeof normalized === "string") {
-    return normalized
-      .split(/\n{2,}|•/)
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const decoded = parseUnknownJson(normalized);
+
+    if (Array.isArray(decoded)) return decoded;
+    if (decoded && typeof decoded === "object") return [decoded];
+
+    return splitLongText(normalized);
   }
 
   if (normalized && typeof normalized === "object") {
