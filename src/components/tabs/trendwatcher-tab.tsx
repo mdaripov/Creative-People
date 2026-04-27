@@ -45,6 +45,7 @@ function extractTextFromObject(value: Record<string, unknown>) {
     (typeof value.name === "string" && value.name) ||
     (typeof value.topic === "string" && value.topic) ||
     (typeof value.headline === "string" && value.headline) ||
+    (typeof value.label === "string" && value.label) ||
     ""
   );
 }
@@ -56,13 +57,34 @@ function extractSummaryFromObject(value: Record<string, unknown>) {
     (typeof value.analysis === "string" && value.analysis) ||
     (typeof value.insight === "string" && value.insight) ||
     (typeof value.scenario === "string" && value.scenario) ||
+    (typeof value.text === "string" && value.text) ||
     ""
   );
 }
 
+function unwrapStructuredValue(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const objectValue = value as Record<string, unknown>;
+
+  if ("scenarios" in objectValue) return objectValue.scenarios;
+  if ("scenario_analytics" in objectValue) return objectValue.scenario_analytics;
+  if ("analytics" in objectValue) return objectValue.analytics;
+  if ("data" in objectValue) return unwrapStructuredValue(objectValue.data);
+  if ("report" in objectValue) return unwrapStructuredValue(objectValue.report);
+  if ("result" in objectValue) return unwrapStructuredValue(objectValue.result);
+  if ("output" in objectValue) return unwrapStructuredValue(objectValue.output);
+
+  return value;
+}
+
 function getItemsArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
+  const unwrapped = unwrapStructuredValue(value);
+
+  if (Array.isArray(unwrapped)) {
+    return unwrapped
       .map((item) => {
         if (typeof item === "string") return item;
         if (item && typeof item === "object") {
@@ -78,8 +100,8 @@ function getItemsArray(value: unknown): string[] {
       .filter(Boolean);
   }
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
+  if (typeof unwrapped === "string") {
+    const trimmed = unwrapped.trim();
 
     if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
       try {
@@ -98,8 +120,9 @@ function getItemsArray(value: unknown): string[] {
       .filter(Boolean);
   }
 
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).flatMap((item) =>
+  if (unwrapped && typeof unwrapped === "object") {
+    const objectValue = unwrapped as Record<string, unknown>;
+    return Object.values(objectValue).flatMap((item) =>
       Array.isArray(item)
         ? item.map((nested) => {
             if (typeof nested === "string") return nested;
@@ -123,6 +146,8 @@ function getItemsArray(value: unknown): string[] {
 }
 
 function parseScenarioInsights(value: unknown): ScenarioInsight[] {
+  const normalizedValue = unwrapStructuredValue(value);
+
   const normalizeBulletList = (items: unknown[]): string[] =>
     items
       .map((item) => {
@@ -139,8 +164,8 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
       })
       .filter(Boolean);
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
+  if (typeof normalizedValue === "string") {
+    const trimmed = normalizedValue.trim();
 
     if (!trimmed) return [];
 
@@ -173,8 +198,8 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
     }));
   }
 
-  if (Array.isArray(value)) {
-    return value
+  if (Array.isArray(normalizedValue)) {
+    return normalizedValue
       .map((item, index) => {
         if (typeof item === "string") {
           return {
@@ -197,7 +222,9 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
                   ? normalizeBulletList(objectItem.items)
                   : Array.isArray(objectItem.steps)
                     ? normalizeBulletList(objectItem.steps)
-                    : [];
+                    : Array.isArray(objectItem.hooks)
+                      ? normalizeBulletList(objectItem.hooks)
+                      : [];
 
           return {
             title,
@@ -215,15 +242,16 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
       .filter((item) => item.title || item.summary || item.bullets.length > 0);
   }
 
-  if (value && typeof value === "object") {
-    const objectValue = value as Record<string, unknown>;
+  if (normalizedValue && typeof normalizedValue === "object") {
+    const objectValue = normalizedValue as Record<string, unknown>;
 
     if (
       "title" in objectValue ||
       "name" in objectValue ||
       "description" in objectValue ||
       "summary" in objectValue ||
-      "analysis" in objectValue
+      "analysis" in objectValue ||
+      "text" in objectValue
     ) {
       return [
         {
@@ -236,24 +264,30 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
                 ? normalizeBulletList(objectValue.bullets)
                 : Array.isArray(objectValue.items)
                   ? normalizeBulletList(objectValue.items)
-                  : [],
+                  : Array.isArray(objectValue.steps)
+                    ? normalizeBulletList(objectValue.steps)
+                    : Array.isArray(objectValue.hooks)
+                      ? normalizeBulletList(objectValue.hooks)
+                      : [],
         },
       ];
     }
 
     return Object.entries(objectValue).flatMap(([key, nestedValue], index) => {
-      if (Array.isArray(nestedValue)) {
+      const unwrappedNested = unwrapStructuredValue(nestedValue);
+
+      if (Array.isArray(unwrappedNested)) {
         return [
           {
             title: key,
             summary: "",
-            bullets: normalizeBulletList(nestedValue),
+            bullets: normalizeBulletList(unwrappedNested),
           },
         ];
       }
 
-      if (nestedValue && typeof nestedValue === "object") {
-        const nestedObject = nestedValue as Record<string, unknown>;
+      if (unwrappedNested && typeof unwrappedNested === "object") {
+        const nestedObject = unwrappedNested as Record<string, unknown>;
         return [
           {
             title: extractTextFromObject(nestedObject) || key || `Сценарий ${index + 1}`,
@@ -265,16 +299,20 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
                   ? normalizeBulletList(nestedObject.bullets)
                   : Array.isArray(nestedObject.items)
                     ? normalizeBulletList(nestedObject.items)
-                    : [],
+                    : Array.isArray(nestedObject.steps)
+                      ? normalizeBulletList(nestedObject.steps)
+                      : Array.isArray(nestedObject.hooks)
+                        ? normalizeBulletList(nestedObject.hooks)
+                        : [],
           },
         ];
       }
 
-      if (typeof nestedValue === "string") {
+      if (typeof unwrappedNested === "string") {
         return [
           {
             title: key,
-            summary: nestedValue,
+            summary: unwrappedNested,
             bullets: [],
           },
         ];
@@ -288,23 +326,25 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
 }
 
 function getPrettyJson(value: unknown): string {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
+  const unwrapped = unwrapStructuredValue(value);
+
+  if (typeof unwrapped === "string") {
+    const trimmed = unwrapped.trim();
     if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
       try {
         return JSON.stringify(JSON.parse(trimmed), null, 2);
       } catch {
-        return value;
+        return unwrapped;
       }
     }
-    return value;
+    return unwrapped;
   }
 
-  if (value && typeof value === "object") {
-    return JSON.stringify(value, null, 2);
+  if (unwrapped && typeof unwrapped === "object") {
+    return JSON.stringify(unwrapped, null, 2);
   }
 
-  return String(value ?? "");
+  return String(unwrapped ?? "");
 }
 
 function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
