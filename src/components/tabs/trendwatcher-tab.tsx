@@ -318,7 +318,6 @@ function getMatchScore(report: ReportRecord, clientName: string, clientId: strin
   const values = [reportClientId, reportClientName].filter(Boolean);
 
   if (values.includes(normalizedId) || values.includes(normalizedName)) return 100;
-
   if (values.some((value) => value.includes(normalizedId) || normalizedId.includes(value))) return 80;
   if (values.some((value) => value.includes(normalizedName) || normalizedName.includes(value))) return 70;
 
@@ -436,6 +435,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [allReportsCount, setAllReportsCount] = useState(0);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [usedFallbackReport, setUsedFallbackReport] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -443,6 +443,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     const fetchReports = async () => {
       setIsLoadingReports(true);
       setErrorMessage(null);
+      setUsedFallbackReport(false);
 
       const { data: reportsData, error } = await supabase
         .from("reports")
@@ -471,7 +472,17 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         .sort((a, b) => b.score - a.score)
         .map((item) => item.report);
 
-      setReports(matchedReports);
+      if (matchedReports.length > 0) {
+        setReports(matchedReports);
+        setUsedFallbackReport(false);
+      } else if (allReports.length > 0) {
+        setReports([allReports[0]]);
+        setUsedFallbackReport(true);
+      } else {
+        setReports([]);
+        setUsedFallbackReport(false);
+      }
+
       setIsLoadingReports(false);
     };
 
@@ -510,6 +521,12 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           ) : null}
         </div>
       </div>
+
+      {usedFallbackReport && latestReport ? (
+        <div className="rounded-3xl border border-[#FBBF24]/20 bg-[#FBBF24]/10 p-4 text-sm text-[#FDE68A]">
+          Для выбранного клиента точный report не найден, поэтому показан самый свежий доступный отчёт из базы.
+        </div>
+      ) : null}
 
       {isLoadingReports ? (
         <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] py-16">
@@ -584,7 +601,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       ) : (
         <div className="space-y-3 rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center">
           <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
-          <p className="text-sm text-[#6B7280]">Для этого клиента в таблице reports пока не найдена подходящая запись</p>
+          <p className="text-sm text-[#6B7280]">В таблице reports пока нет доступных отчётов</p>
           <div className="mx-auto max-w-xl rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left">
             <p className="mb-1 text-xs text-[#8B93A7]">Диагностика</p>
             <p className="break-all text-sm text-white">name: {data.client.name}</p>
