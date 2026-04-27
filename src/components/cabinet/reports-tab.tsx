@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, Clock3, Filter, Plus, ReceiptText } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  Filter,
+  Plus,
+  ReceiptText,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -113,6 +120,11 @@ export function ReportsTab({ clients }: ReportsTabProps) {
     );
   };
 
+  const removeEntry = (id: string) => {
+    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+    toast.success("Запись удалена");
+  };
+
   const addEntry = () => {
     const fallbackClient = clients[0]?.name ?? "";
     setEntries((prev) => [
@@ -203,7 +215,7 @@ export function ReportsTab({ clients }: ReportsTabProps) {
 
         <div className="overflow-hidden rounded-[28px] border border-[#1E1E1E] bg-[#131313]">
           <div className="overflow-x-auto">
-            <table className="min-w-[1200px] w-full">
+            <table className="min-w-[1280px] w-full">
               <thead>
                 <tr className="border-b border-[#1E1E1E] bg-[#171717]">
                   <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
@@ -226,6 +238,9 @@ export function ReportsTab({ clients }: ReportsTabProps) {
                   </th>
                   <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
                     Примечания / Графика
+                  </th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
+                    Действия
                   </th>
                 </tr>
               </thead>
@@ -291,12 +306,21 @@ export function ReportsTab({ clients }: ReportsTabProps) {
                         placeholder="Ссылки, графика, комментарии"
                       />
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => removeEntry(entry.id)}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Удалить
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
                       По выбранному фильтру записей пока нет.
                     </td>
                   </tr>
