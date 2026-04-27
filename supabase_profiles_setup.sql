@@ -1,89 +1,362 @@
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  first_name TEXT,
-  last_name TEXT,
-  avatar_url TEXT,
-  role TEXT NOT NULL DEFAULT 'smm_specialist',
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (id)
+-- Profiles table
+create table if not exists public.profiles (
+  id uuid not null references auth.users(id) on delete cascade,
+  first_name text,
+  last_name text,
+  avatar_url text,
+  role text not null default 'smm_specialist',
+  updated_at timestamp with time zone not null default now(),
+  constraint profiles_pkey primary key (id),
+  constraint profiles_role_check check (role in ('smm_specialist', 'manager'))
 );
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+alter table public.profiles enable row level security;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'profiles_select_policy'
-  ) THEN
-    CREATE POLICY "profiles_select_policy" ON public.profiles
-    FOR SELECT TO authenticated
-    USING (auth.uid() = id);
-  END IF;
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles_select_policy'
+  ) then
+    create policy profiles_select_policy
+    on public.profiles
+    for select
+    to authenticated
+    using (auth.uid() = id);
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'profiles_insert_policy'
-  ) THEN
-    CREATE POLICY "profiles_insert_policy" ON public.profiles
-    FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = id);
-  END IF;
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles_insert_policy'
+  ) then
+    create policy profiles_insert_policy
+    on public.profiles
+    for insert
+    to authenticated
+    with check (auth.uid() = id);
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'profiles_update_policy'
-  ) THEN
-    CREATE POLICY "profiles_update_policy" ON public.profiles
-    FOR UPDATE TO authenticated
-    USING (auth.uid() = id);
-  END IF;
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles_update_policy'
+  ) then
+    create policy profiles_update_policy
+    on public.profiles
+    for update
+    to authenticated
+    using (auth.uid() = id);
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'profiles_delete_policy'
-  ) THEN
-    CREATE POLICY "profiles_delete_policy" ON public.profiles
-    FOR DELETE TO authenticated
-    USING (auth.uid() = id);
-  END IF;
-END $$;
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles_delete_policy'
+  ) then
+    create policy profiles_delete_policy
+    on public.profiles
+    for delete
+    to authenticated
+    using (auth.uid() = id);
+  end if;
+end $$;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  INSERT INTO public.profiles (id, first_name, last_name, role)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data ->> 'first_name',
-    NEW.raw_user_meta_data ->> 'last_name',
-    COALESCE(NEW.raw_user_meta_data ->> 'role', 'smm_specialist')
+-- Create profile automatically on signup
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, first_name, last_name, role)
+  values (
+    new.id,
+    new.raw_user_meta_data ->> 'first_name',
+    new.raw_user_meta_data ->> 'last_name',
+    coalesce(new.raw_user_meta_data ->> 'role', 'smm_specialist')
   )
-  ON CONFLICT (id) DO NOTHING;
+  on conflict (id) do nothing;
 
-  RETURN NEW;
-END;
+  return new;
+end;
 $$;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+drop trigger if exists on_auth_user_created on auth.users;
 
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_new_user();
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Specialist clients table
+create table if not exists public.specialist_clients (
+  id uuid primary key default gen_random_uuid(),
+  specialist_id uuid not null references public.profiles(id) on delete cascade,
+  client_id text not null,
+  created_at timestamp with time zone not null default now(),
+  constraint specialist_clients_unique unique (specialist_id, client_id)
+);
+
+alter table public.specialist_clients enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'specialist_clients' and policyname = 'specialist_clients_select_policy'
+  ) then
+    create policy specialist_clients_select_policy
+    on public.specialist_clients
+    for select
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'specialist_clients' and policyname = 'specialist_clients_insert_policy'
+  ) then
+    create policy specialist_clients_insert_policy
+    on public.specialist_clients
+    for insert
+    to authenticated
+    with check (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'specialist_clients' and policyname = 'specialist_clients_update_policy'
+  ) then
+    create policy specialist_clients_update_policy
+    on public.specialist_clients
+    for update
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'specialist_clients' and policyname = 'specialist_clients_delete_policy'
+  ) then
+    create policy specialist_clients_delete_policy
+    on public.specialist_clients
+    for delete
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+end $$;
+
+-- Approved SMM items table
+create table if not exists public.approved_smm_items (
+  id text primary key,
+  client_id text not null,
+  specialist_id uuid not null references public.profiles(id) on delete cascade,
+  text text not null,
+  created_at timestamp with time zone not null default now()
+);
+
+alter table public.approved_smm_items enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'approved_smm_items' and policyname = 'approved_smm_items_select_policy'
+  ) then
+    create policy approved_smm_items_select_policy
+    on public.approved_smm_items
+    for select
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'approved_smm_items' and policyname = 'approved_smm_items_insert_policy'
+  ) then
+    create policy approved_smm_items_insert_policy
+    on public.approved_smm_items
+    for insert
+    to authenticated
+    with check (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'approved_smm_items' and policyname = 'approved_smm_items_update_policy'
+  ) then
+    create policy approved_smm_items_update_policy
+    on public.approved_smm_items
+    for update
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'approved_smm_items' and policyname = 'approved_smm_items_delete_policy'
+  ) then
+    create policy approved_smm_items_delete_policy
+    on public.approved_smm_items
+    for delete
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+end $$;
+
+-- Work reports table
+create table if not exists public.work_reports (
+  id uuid primary key default gen_random_uuid(),
+  specialist_id uuid not null references public.profiles(id) on delete cascade,
+  client_name text not null,
+  date date not null,
+  task text not null,
+  start_time text not null,
+  end_time text not null,
+  notes text not null default '',
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);
+
+alter table public.work_reports enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'work_reports' and policyname = 'work_reports_select_policy'
+  ) then
+    create policy work_reports_select_policy
+    on public.work_reports
+    for select
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'work_reports' and policyname = 'work_reports_insert_policy'
+  ) then
+    create policy work_reports_insert_policy
+    on public.work_reports
+    for insert
+    to authenticated
+    with check (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'work_reports' and policyname = 'work_reports_update_policy'
+  ) then
+    create policy work_reports_update_policy
+    on public.work_reports
+    for update
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'work_reports' and policyname = 'work_reports_delete_policy'
+  ) then
+    create policy work_reports_delete_policy
+    on public.work_reports
+    for delete
+    to authenticated
+    using (
+      auth.uid() = specialist_id
+      or exists (
+        select 1
+        from public.profiles
+        where profiles.id = auth.uid()
+          and profiles.role = 'manager'
+      )
+    );
+  end if;
+end $$;
