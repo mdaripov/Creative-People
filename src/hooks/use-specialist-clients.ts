@@ -30,7 +30,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         .eq("specialist_id", userId);
 
       if (error) {
-        toast.error("Не удалось загрузить клиентов специалиста");
+        setClientIds([]);
         setLoading(false);
         return;
       }
@@ -62,6 +62,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
       }
 
       setClientIds((prev) => prev.filter((id) => id !== clientId));
+      toast.success("Клиент убран из личного кабинета");
       return;
     }
 
@@ -76,6 +77,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
     }
 
     setClientIds((prev) => [...prev, clientId]);
+    toast.success("Клиент добавлен в личный кабинет");
   };
 
   const isAssigned = (clientId: string) => assignedClientIds.includes(clientId);
