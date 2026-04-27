@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Calendar, Loader2, Flame, Target, Lightbulb } from "lucide-react";
+import {
+  ClipboardList,
+  Calendar,
+  Loader2,
+  Flame,
+  Target,
+  Lightbulb,
+  FileText,
+  Database,
+  Tag,
+  UserCircle2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -28,7 +39,7 @@ function getItemsArray(value: unknown): string[] {
             objectItem.topic ??
             objectItem.name ??
             objectItem.format ??
-            JSON.stringify(item)
+            JSON.stringify(item, null, 2)
           ) as string;
         }
         return String(item);
@@ -68,7 +79,7 @@ function getItemsArray(value: unknown): string[] {
                 objectItem.topic ??
                 objectItem.name ??
                 objectItem.format ??
-                JSON.stringify(nested)
+                JSON.stringify(nested, null, 2)
               ) as string;
             }
             return String(nested);
@@ -80,6 +91,26 @@ function getItemsArray(value: unknown): string[] {
   }
 
   return [];
+}
+
+function getPrettyJson(value: unknown): string {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+      try {
+        return JSON.stringify(JSON.parse(trimmed), null, 2);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return String(value ?? "");
 }
 
 function ReportColumn({
@@ -110,7 +141,7 @@ function ReportColumn({
           {items.map((item, index) => (
             <div
               key={`${title}-${index}`}
-              className="rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3 text-sm leading-relaxed text-[#D1D5DB]"
+              className="rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3 text-sm leading-relaxed text-[#D1D5DB] whitespace-pre-wrap"
             >
               {item}
             </div>
@@ -119,6 +150,26 @@ function ReportColumn({
       ) : (
         <p className="text-sm text-[#6B7280]">Нет данных</p>
       )}
+    </div>
+  );
+}
+
+function MetaCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+      <div className="flex items-center gap-2 mb-2 text-[#8B93A7] text-xs">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="text-sm text-white break-all">{value || "—"}</p>
     </div>
   );
 }
@@ -174,7 +225,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             </div>
             <h3 className="text-lg font-semibold text-white">ИИ Трендвотчер</h3>
             <p className="mt-1 text-sm text-[#8B93A7]">
-              Во вкладке отображаются только реальные данные из таблицы reports для текущего клиента.
+              Во вкладке отображаются реальные поля из таблицы reports для текущего клиента.
             </p>
           </div>
 
@@ -194,26 +245,50 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           </div>
         </div>
       ) : latestReport ? (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <ReportColumn
-            title="Тренды"
-            icon={<Flame className="h-4 w-4" />}
-            accent="#A78BFA"
-            items={reportTrends}
-          />
-          <ReportColumn
-            title="Конкуренты"
-            icon={<Target className="h-4 w-4" />}
-            accent="#38BDF8"
-            items={reportCompetitors}
-          />
-          <ReportColumn
-            title="Сценарии"
-            icon={<Lightbulb className="h-4 w-4" />}
-            accent="#34D399"
-            items={reportScenarios}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <MetaCard label="Report ID" value={latestReport.id} icon={<Database className="h-3.5 w-3.5" />} />
+            <MetaCard label="Client ID" value={latestReport.client_id ?? ""} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
+            <MetaCard label="Client Name" value={latestReport.client_name ?? ""} icon={<FileText className="h-3.5 w-3.5" />} />
+            <MetaCard label="Status" value={latestReport.status ?? ""} icon={<Tag className="h-3.5 w-3.5" />} />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <ReportColumn
+              title="Тренды"
+              icon={<Flame className="h-4 w-4" />}
+              accent="#A78BFA"
+              items={reportTrends}
+            />
+            <ReportColumn
+              title="Конкуренты"
+              icon={<Target className="h-4 w-4" />}
+              accent="#38BDF8"
+              items={reportCompetitors}
+            />
+            <ReportColumn
+              title="Сценарии"
+              icon={<Lightbulb className="h-4 w-4" />}
+              accent="#34D399"
+              items={reportScenarios}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
+              <h4 className="text-sm font-semibold text-white mb-3">Raw trends</h4>
+              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.trends)}</pre>
+            </div>
+            <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
+              <h4 className="text-sm font-semibold text-white mb-3">Raw competitors</h4>
+              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.competitors)}</pre>
+            </div>
+            <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
+              <h4 className="text-sm font-semibold text-white mb-3">Raw scenarios</h4>
+              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.scenarios)}</pre>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center space-y-3">
           <ClipboardList className="w-8 h-8 text-[#2A2A2A] mx-auto" />
