@@ -439,18 +439,17 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <input
-                          list={`clients-${entry.id}`}
+                        <select
                           value={entry.client}
                           onChange={(event) => void updateEntry(entry.id, "client", event.target.value)}
                           className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
-                          placeholder="Название клиента"
-                        />
-                        <datalist id={`clients-${entry.id}`}>
+                        >
                           {clients.map((client) => (
-                            <option key={client.id} value={client.name} />
+                            <option key={client.id} value={client.name}>
+                              {client.name}
+                            </option>
                           ))}
-                        </datalist>
+                        </select>
                       </td>
                       <td className="px-4 py-3">
                         <textarea
