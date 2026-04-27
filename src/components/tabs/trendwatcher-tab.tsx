@@ -14,8 +14,10 @@ import {
   UserCircle2,
   AlertCircle,
   Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import reportsRows from "@/lib/reports_rows.json";
 import type { ClientData } from "@/lib/mock-data";
 
 type ReportRecord = {
@@ -477,6 +479,8 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [usedFallbackReport, setUsedFallbackReport] = useState(false);
 
+  const localReports = reportsRows as ReportRecord[];
+
   useEffect(() => {
     let isMounted = true;
 
@@ -534,9 +538,15 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const latestReport = reports[0] ?? null;
+  const localLatestReport = localReports[0] ?? null;
   const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
   const reportCompetitors = useMemo(() => getItemsArray(latestReport?.competitors), [latestReport]);
   const scenarioAnalytics = useMemo(() => parseScenarioInsights(latestReport?.scenarios), [latestReport]);
+
+  const localScenarioAnalytics = useMemo(
+    () => parseScenarioInsights(localLatestReport?.scenarios),
+    [localLatestReport]
+  );
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
@@ -581,11 +591,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             <p className="text-sm font-semibold">Ошибка загрузки reports</p>
           </div>
           <p className="text-sm text-[#FECACA]">{errorMessage}</p>
-          <div className="mt-4 rounded-2xl border border-[#4A1D1D] bg-[#1B0F0F] p-4 text-left">
-            <p className="mb-1 text-xs text-[#FCA5A5]">Текущий клиент</p>
-            <p className="break-all text-sm text-white">name: {data.client.name}</p>
-            <p className="break-all text-sm text-white">id: {data.client.id}</p>
-          </div>
         </div>
       ) : latestReport ? (
         <>
@@ -639,15 +644,54 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           </div>
         </>
       ) : (
-        <div className="space-y-3 rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center">
-          <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
-          <p className="text-sm text-[#6B7280]">В таблице reports пока нет доступных отчётов</p>
-          <div className="mx-auto max-w-xl rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left">
-            <p className="mb-1 text-xs text-[#8B93A7]">Диагностика</p>
-            <p className="break-all text-sm text-white">name: {data.client.name}</p>
-            <p className="break-all text-sm text-white">id: {data.client.id}</p>
-            <p className="break-all text-sm text-white">reports visible in browser: {allReportsCount}</p>
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-[#7C2D12] bg-[#2A170F] p-5">
+            <div className="mb-2 flex items-center gap-2 text-[#FDBA74]">
+              <ShieldAlert className="h-4 w-4" />
+              <p className="text-sm font-semibold">Supabase не отдает строки в браузер</p>
+            </div>
+            <p className="text-sm text-[#FED7AA]">
+              Сейчас клиентский запрос к таблице <span className="font-semibold">reports</span> возвращает 0 строк.
+              Это обычно означает ограничение доступа на стороне Supabase, а не проблему интерфейса.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetaCard label="name" value={data.client.name} icon={<FileText className="h-3.5 w-3.5" />} />
+              <MetaCard label="id" value={data.client.id} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
+              <MetaCard label="reports visible in browser" value={String(allReportsCount)} icon={<Database className="h-3.5 w-3.5" />} />
+              <MetaCard label="local sample rows" value={String(localReports.length)} icon={<ClipboardList className="h-3.5 w-3.5" />} />
+            </div>
           </div>
+
+          {localLatestReport ? (
+            <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
+              <div className="mb-5">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-medium text-[#A78BFA]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Локальный пример из приложенного файла
+                </div>
+                <h4 className="text-base font-semibold text-white">Структура данных читается нормально</h4>
+                <p className="mt-1 text-sm text-[#8B93A7]">
+                  Ниже показан пример из вашего JSON-файла. Это подтверждает, что проблема именно в доступе к таблице из браузера.
+                </p>
+              </div>
+
+              {localScenarioAnalytics.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {localScenarioAnalytics.map((scenario, index) => (
+                    <ScenarioAnalyticsCard
+                      key={`${scenario.title}-${index}`}
+                      scenario={scenario}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+                  <p className="text-sm text-[#6B7280]">Даже локальный пример не содержит распознанной аналитики.</p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
     </div>
