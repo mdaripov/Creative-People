@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { TrendingUp, Flame, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { TrendingUp, Flame, Filter, Loader2, Calendar, ClipboardList } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import type { ClientData, Trend } from "@/lib/mock-data";
+
+type ReportRecord = {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  generated_at: string | null;
+  status: string | null;
+  competitors: unknown;
+  trends: unknown;
+  scenarios: unknown;
+};
 
 const relevanceConfig = {
   high: { label: "Высокая", color: "#34D399", bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.2)" },
@@ -62,8 +74,59 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
   );
 }
 
+function getItemsArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") return JSON.stringify(item);
+        return String(item);
+      })
+      .filter(Boolean);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).flatMap((item) =>
+      Array.isArray(item)
+        ? item.map((nested) => (typeof nested === "string" ? nested : JSON.stringify(nested)))
+        : typeof item === "string"
+        ? [item]
+        : []
+    );
+  }
+
+  return [];
+}
+
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [filter, setFilter] = useState("Все");
+  const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchReports = async () => {
+      setIsLoadingReports(true);
+
+      const { data: reportsData } = await supabase
+        .from("reports")
+        .select("id, client_id, client_name, generated_at, status, competitors, trends, scenarios")
+        .or(`client_id.eq.${data.client.id},client_name.eq.${data.client.name}`)
+        .order("generated_at", { ascending: false });
+
+      if (isMounted) {
+        setReports((reportsData as ReportRecord[] | null) ?? []);
+        setIsLoadingReports(false);
+      }
+    };
+
+    fetchReports();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [data.client.id, data.client.name]);
 
   const filtered =
     filter === "Все"
@@ -72,9 +135,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
   const highCount = data.trends.filter((t) => t.relevance === "high").length;
 
+  const latestReport = reports[0] ?? null;
+  const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
+  const reportCompetitors = useMemo(() => getItemsArray(latestReport?.competitors), [latestReport]);
+  const reportScenarios = useMemo(() => getItemsArray(latestReport?.scenarios), [latestReport]);
+
   return (
     <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
-      {/* Header stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Всего трендов", value: data.trends.length, color: "#A78BFA", icon: TrendingUp },
@@ -101,7 +168,70 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         })}
       </div>
 
-      {/* Platform filter */}
+      <div className="rounded-2xl bg-[#161616] border border-[#1E1E1E] p-4">
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-[#38BDF8]" />
+            <h3 className="text-sm font-semibold text-white">Репортс из базы</h3>
+          </div>
+          {latestReport?.generated_at ? (
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-[#8B93A7]">
+              <Calendar className="w-3.5 h-3.5" />
+              {new Date(latestReport.generated_at).toLocaleString("ru-RU")}
+            </div>
+          ) : null}
+        </div>
+
+        {isLoadingReports ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-5 h-5 text-[#6B7280] animate-spin" />
+          </div>
+        ) : latestReport ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="rounded-2xl bg-[#111111] border border-[#1E1E1E] p-4">
+              <p className="text-xs font-semibold text-white mb-3">Тренды</p>
+              {reportTrends.length > 0 ? (
+                <ul className="space-y-2">
+                  {reportTrends.map((item, index) => (
+                    <li key={index} className="text-xs text-[#9CA3AF] leading-relaxed">• {item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[#6B7280]">Нет данных</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl bg-[#111111] border border-[#1E1E1E] p-4">
+              <p className="text-xs font-semibold text-white mb-3">Конкуренты</p>
+              {reportCompetitors.length > 0 ? (
+                <ul className="space-y-2">
+                  {reportCompetitors.map((item, index) => (
+                    <li key={index} className="text-xs text-[#9CA3AF] leading-relaxed">• {item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[#6B7280]">Нет данных</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl bg-[#111111] border border-[#1E1E1E] p-4">
+              <p className="text-xs font-semibold text-white mb-3">Сценарии</p>
+              {reportScenarios.length > 0 ? (
+                <ul className="space-y-2">
+                  {reportScenarios.map((item, index) => (
+                    <li key={index} className="text-xs text-[#9CA3AF] leading-relaxed">• {item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[#6B7280]">Нет данных</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[#6B7280] py-6 text-center">Для этого клиента в таблице reports пока нет записей</p>
+        )}
+      </div>
+
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
         {allPlatforms.map((p) => {
           const isActive = filter === p;
@@ -131,7 +261,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         })}
       </div>
 
-      {/* Trend cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map((trend, i) => (
           <TrendCard key={trend.id} trend={trend} index={i} />
