@@ -1,15 +1,21 @@
 "use client";
 
-import { CheckCircle2, FileText, FolderOpen, Scissors, Video } from "lucide-react";
+import { CheckCircle2, FileText, FolderOpen, MessageSquareText, Scissors, Video } from "lucide-react";
+import { FormattedRichText } from "@/components/formatted-rich-text";
+import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
 import type { ClientData } from "@/lib/mock-data";
 
 export function SmmApprovedTab({ data }: { data: ClientData }) {
+  const { approvedItems } = useApprovedSmmItems(data.client.id);
   const approvedPosts = data.contentPosts.filter((item) => item.approved);
   const approvedVideoTZ = data.videoTZList.filter((item) => item.approved);
   const approvedEditorTZ = data.editorTZList.filter((item) => item.approved);
 
   const totalApproved =
-    approvedPosts.length + approvedVideoTZ.length + approvedEditorTZ.length;
+    approvedItems.length +
+    approvedPosts.length +
+    approvedVideoTZ.length +
+    approvedEditorTZ.length;
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in">
@@ -22,7 +28,7 @@ export function SmmApprovedTab({ data }: { data: ClientData }) {
             <div>
               <h3 className="text-lg font-semibold text-white">ИИ СММ — утверждено</h3>
               <p className="text-sm text-[#8B93A7]">
-                Отдельная папка с подтвержденным контент-планом и техническими заданиями.
+                Отдельная папка с подтвержденным контентом, сообщениями и техническими заданиями.
               </p>
             </div>
           </div>
@@ -35,6 +41,35 @@ export function SmmApprovedTab({ data }: { data: ClientData }) {
       </div>
 
       <div className="grid gap-4">
+        <section className="rounded-3xl border border-[#1E1E1E] bg-[#161616] overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-[#1E1E1E] px-4 py-3">
+            <MessageSquareText className="h-4 w-4 text-[#A78BFA]" />
+            <h4 className="text-sm font-semibold text-white">Утвержденные ответы ИИ SMM</h4>
+            <span className="ml-auto text-xs text-[#8B93A7]">{approvedItems.length}</span>
+          </div>
+          <div className="p-4">
+            {approvedItems.length === 0 ? (
+              <p className="text-sm text-[#6B7280]">Пока нет утвержденных ответов из чата.</p>
+            ) : (
+              <div className="space-y-3">
+                {approvedItems.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-[#222222] bg-[#121212] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="rounded-full bg-[#A78BFA]/10 px-2.5 py-1 text-[11px] font-medium text-[#A78BFA]">
+                        ИИ SMM
+                      </span>
+                      <span className="text-xs text-[#8B93A7]">
+                        Утверждено
+                      </span>
+                    </div>
+                    <FormattedRichText text={item.text} accent="#A78BFA" compact />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         <section className="rounded-3xl border border-[#1E1E1E] bg-[#161616] overflow-hidden">
           <div className="flex items-center gap-2 border-b border-[#1E1E1E] px-4 py-3">
             <FileText className="h-4 w-4 text-[#A78BFA]" />

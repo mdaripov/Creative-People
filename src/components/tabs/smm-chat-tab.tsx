@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { Bot, Send, User, Paperclip, Mic, Star } from "lucide-react";
 import { ChatMessageContent } from "@/components/chat-message-content";
+import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
 import type { ClientData } from "@/lib/mock-data";
 
 interface Message {
   id: string;
   role: "agent" | "user";
   text: string;
-  approved?: boolean;
 }
 
 const starterPrompts = [
@@ -24,21 +24,23 @@ const WEBHOOK_URL = "https://n8n19643.hostkey.in/webhook/client-agent";
 export function SmmChatTab({ data }: { data: ClientData }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { approveItem, isApproved } = useApprovedSmmItems(data.client.id);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "agent",
       text: `Привет! Я ИИ SMM-агент для ${data.client.name}. Могу помочь с контент-планом, идеями, ТЗ и стратегией.`,
-      approved: false,
     },
   ]);
 
-  const approveMessage = (messageId: string) => {
-    setMessages((prev) =>
-      prev.map((message) =>
-        message.id === messageId ? { ...message, approved: true } : message
-      )
-    );
+  const approveMessage = (message: Message) => {
+    if (message.role !== "agent") return;
+
+    approveItem({
+      id: message.id,
+      clientId: data.client.id,
+      text: message.text,
+    });
   };
 
   const handleSend = async (text: string) => {
@@ -73,7 +75,6 @@ export function SmmChatTab({ data }: { data: ClientData }) {
           id: `agent-${Date.now() + 1}`,
           role: "agent",
           text: result,
-          approved: false,
         },
       ]);
     } catch {
@@ -83,7 +84,6 @@ export function SmmChatTab({ data }: { data: ClientData }) {
           id: `agent-${Date.now() + 1}`,
           role: "agent",
           text: "Ошибка подключения. Попробуйте снова.",
-          approved: false,
         },
       ]);
     } finally {
@@ -111,6 +111,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
           {messages.map((message) => {
             const isAgent = message.role === "agent";
+            const approved = isApproved(message.id);
 
             return (
               <div
@@ -141,15 +142,15 @@ export function SmmChatTab({ data }: { data: ClientData }) {
 
                     {isAgent && (
                       <button
-                        onClick={() => approveMessage(message.id)}
+                        onClick={() => approveMessage(message)}
                         className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200 ${
-                          message.approved
+                          approved
                             ? "border-[#FBBF24]/30 bg-[#FBBF24]/15 text-[#FBBF24]"
                             : "border-[#2A2A2A] bg-[#181818] text-[#6B7280] hover:border-[#FBBF24]/30 hover:text-[#FBBF24]"
                         }`}
                         aria-label="Добавить в утверждено"
                       >
-                        <Star className={`h-3.5 w-3.5 ${message.approved ? "fill-current" : ""}`} />
+                        <Star className={`h-3.5 w-3.5 ${approved ? "fill-current" : ""}`} />
                       </button>
                     )}
                   </div>
