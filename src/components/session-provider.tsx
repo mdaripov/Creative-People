@@ -2,8 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { UserProfile } from "@/lib/auth";
+import { getReadableAuthError } from "@/lib/auth-error";
 
 interface SessionContextValue {
   session: Session | null;
@@ -48,12 +50,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       setLoading(true);
-      const nextProfile = await loadProfile(nextSession.user.id);
 
-      if (!active) return;
+      try {
+        const nextProfile = await loadProfile(nextSession.user.id);
 
-      setProfile(nextProfile);
-      setLoading(false);
+        if (!active) return;
+
+        setProfile(nextProfile);
+      } catch (error) {
+        if (!active) return;
+
+        setProfile(null);
+        toast.error(getReadableAuthError(error));
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     };
 
     const initialize = async () => {
@@ -64,7 +77,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       await syncSession(initialSession);
     };
 
-    initialize();
+    void initialize();
 
     const {
       data: { subscription },
@@ -76,7 +89,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
         void syncSession(nextSession);
       }
     });
