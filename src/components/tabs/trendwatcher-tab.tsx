@@ -8,13 +8,8 @@ import {
   Flame,
   Target,
   Lightbulb,
-  FileText,
-  Database,
-  Tag,
-  UserCircle2,
-  AlertCircle,
   Sparkles,
-  ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import reportsRows from "@/lib/reports_rows.json";
@@ -327,28 +322,6 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
   return [];
 }
 
-function getPrettyJson(value: unknown): string {
-  const unwrapped = unwrapStructuredValue(value);
-
-  if (typeof unwrapped === "string") {
-    const trimmed = unwrapped.trim();
-    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
-      try {
-        return JSON.stringify(JSON.parse(trimmed), null, 2);
-      } catch {
-        return unwrapped;
-      }
-    }
-    return unwrapped;
-  }
-
-  if (unwrapped && typeof unwrapped === "object") {
-    return JSON.stringify(unwrapped, null, 2);
-  }
-
-  return String(unwrapped ?? "");
-}
-
 function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
   const reportClientId = normalizeValue(report.client_id);
   const reportClientName = normalizeValue(report.client_name);
@@ -371,76 +344,121 @@ function getMatchScore(report: ReportRecord, clientName: string, clientId: strin
   return 0;
 }
 
-function ReportColumn({
+function SectionCard({
   title,
+  subtitle,
   icon,
   accent,
-  items,
+  children,
 }: {
   title: string;
+  subtitle: string;
   icon: React.ReactNode;
   accent: string;
-  items: string[];
+  children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4 sm:p-5">
-      <div className="mb-4 flex items-center gap-2">
+    <section className="rounded-[28px] border border-[#1E1E1E] bg-[#141414] p-5 sm:p-6">
+      <div className="mb-5 flex items-start gap-3">
         <div
-          className="flex h-9 w-9 items-center justify-center rounded-2xl border"
-          style={{ background: `${accent}15`, borderColor: `${accent}25`, color: accent }}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border"
+          style={{ background: `${accent}14`, borderColor: `${accent}28`, color: accent }}
         >
           {icon}
         </div>
-        <h4 className="text-sm font-semibold text-white">{title}</h4>
-      </div>
-
-      {items.length > 0 ? (
-        <div className="space-y-2.5">
-          {items.map((item, index) => (
-            <div
-              key={`${title}-${index}`}
-              className="whitespace-pre-wrap rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3 text-sm leading-relaxed text-[#D1D5DB]"
-            >
-              {item}
-            </div>
-          ))}
+        <div>
+          <h4 className="text-base font-semibold text-white">{title}</h4>
+          <p className="mt-1 text-sm text-[#8B93A7]">{subtitle}</p>
         </div>
-      ) : (
-        <p className="text-sm text-[#6B7280]">Нет данных</p>
-      )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Pill({
+  label,
+  accent,
+}: {
+  label: string;
+  accent: string;
+}) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-medium"
+      style={{
+        color: accent,
+        background: `${accent}12`,
+        borderColor: `${accent}26`,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function InsightList({
+  items,
+  accent,
+}: {
+  items: string[];
+  accent: string;
+}) {
+  return (
+    <div className="grid gap-3">
+      {items.map((item, index) => (
+        <div
+          key={`${item}-${index}`}
+          className="rounded-2xl border border-[#222222] bg-[#101010] p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: accent }}
+            />
+            <p className="text-sm leading-relaxed text-[#D1D5DB]">{item}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function ScenarioAnalyticsCard({ scenario, index }: { scenario: ScenarioInsight; index: number }) {
+function ScenarioCard({
+  scenario,
+  index,
+}: {
+  scenario: ScenarioInsight;
+  index: number;
+}) {
   return (
-    <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4 sm:p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
-          <Sparkles className="h-4 w-4" />
-        </div>
+    <div className="rounded-3xl border border-[#222222] bg-[#101010] p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#6B7280]">
             Сценарий {index + 1}
           </p>
-          <h4 className="mt-1 text-sm font-semibold text-white">
+          <h5 className="mt-1 text-base font-semibold text-white">
             {scenario.title || `Сценарий ${index + 1}`}
-          </h4>
+          </h5>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
+          <Lightbulb className="h-4 w-4" />
         </div>
       </div>
 
       {scenario.summary ? (
-        <p className="mb-4 text-sm leading-relaxed text-[#D1D5DB]">
+        <p className="mb-4 text-sm leading-relaxed text-[#C9D1E1]">
           {scenario.summary}
         </p>
       ) : null}
 
       {scenario.bullets.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {scenario.bullets.map((bullet, bulletIndex) => (
             <div
               key={`${scenario.title}-${bulletIndex}`}
-              className="flex items-start gap-2 rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3"
+              className="flex items-start gap-2.5 rounded-2xl border border-[#1C1C1C] bg-[#151515] px-3 py-3"
             >
               <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#34D399]" />
               <p className="text-sm leading-relaxed text-[#D1D5DB]">{bullet}</p>
@@ -452,99 +470,98 @@ function ScenarioAnalyticsCard({ scenario, index }: { scenario: ScenarioInsight;
   );
 }
 
-function MetaCard({
+function ReportShowcase({
+  report,
   label,
-  value,
-  icon,
 }: {
+  report: ReportRecord;
   label: string;
-  value: string;
-  icon: React.ReactNode;
 }) {
-  return (
-    <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
-      <div className="mb-2 flex items-center gap-2 text-xs text-[#8B93A7]">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <p className="break-all text-sm text-white">{value || "—"}</p>
-    </div>
-  );
-}
-
-function LocalReportPreview({ report, index }: { report: ReportRecord; index: number }) {
-  const competitors = getItemsArray(report.competitors);
   const trends = getItemsArray(report.trends);
+  const competitors = getItemsArray(report.competitors);
   const scenarios = parseScenarioInsights(report.scenarios);
 
   return (
-    <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-medium text-[#A78BFA]">
-            <Sparkles className="h-3.5 w-3.5" />
-            Локальный отчёт #{index + 1}
-          </div>
-          <h4 className="text-base font-semibold text-white">
-            {report.client_name || report.client_id || `Report ${index + 1}`}
-          </h4>
-        </div>
-
-        {report.generated_at ? (
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-[#222222] bg-[#111111] px-4 py-2 text-xs text-[#8B93A7]">
-            <Calendar className="h-3.5 w-3.5" />
-            {new Date(report.generated_at).toLocaleString("ru-RU")}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetaCard label="Report ID" value={report.id} icon={<Database className="h-3.5 w-3.5" />} />
-        <MetaCard label="Client ID" value={report.client_id ?? ""} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
-        <MetaCard label="Client Name" value={report.client_name ?? ""} icon={<FileText className="h-3.5 w-3.5" />} />
-        <MetaCard label="Status" value={report.status ?? ""} icon={<Tag className="h-3.5 w-3.5" />} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <ReportColumn title="Тренды" icon={<Flame className="h-4 w-4" />} accent="#A78BFA" items={trends} />
-        <ReportColumn title="Конкуренты" icon={<Target className="h-4 w-4" />} accent="#38BDF8" items={competitors} />
-      </div>
-
-      <div className="mt-4 rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
-            <Lightbulb className="h-5 w-5" />
-          </div>
+    <div className="space-y-5">
+      <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h5 className="text-base font-semibold text-white">Аналитика сценариев</h5>
-            <p className="text-sm text-[#8B93A7]">Данные из локального JSON-файла.</p>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Pill label={label} accent="#A78BFA" />
+              {report.status ? <Pill label={report.status} accent="#38BDF8" /> : null}
+            </div>
+            <h3 className="text-xl font-semibold text-white">
+              {report.client_name || report.client_id || "Отчёт по трендам"}
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8B93A7]">
+              Красивое представление трендов, конкурентов и сценариев для выбранного клиента.
+            </p>
           </div>
-        </div>
 
+          {report.generated_at ? (
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-[#222222] bg-[#101010] px-4 py-2 text-xs text-[#8B93A7]">
+              <Calendar className="h-3.5 w-3.5" />
+              {new Date(report.generated_at).toLocaleString("ru-RU")}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard
+          title="Актуальные тренды"
+          subtitle="Что сейчас лучше всего цепляет внимание аудитории."
+          icon={<Flame className="h-5 w-5" />}
+          accent="#A78BFA"
+        >
+          {trends.length > 0 ? (
+            <InsightList items={trends} accent="#A78BFA" />
+          ) : (
+            <p className="text-sm text-[#6B7280]">Тренды пока не найдены.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Конкуренты и ориентиры"
+          subtitle="Кого стоит отслеживать и какие идеи можно адаптировать."
+          icon={<Target className="h-5 w-5" />}
+          accent="#38BDF8"
+        >
+          {competitors.length > 0 ? (
+            <InsightList items={competitors} accent="#38BDF8" />
+          ) : (
+            <p className="text-sm text-[#6B7280]">Конкуренты пока не найдены.</p>
+          )}
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title="Сценарии для контента"
+        subtitle="Готовые идеи и направления, которые можно брать в работу."
+        icon={<Sparkles className="h-5 w-5" />}
+        accent="#34D399"
+      >
         {scenarios.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {scenarios.map((scenario, scenarioIndex) => (
-              <ScenarioAnalyticsCard
-                key={`${report.id}-${scenario.title}-${scenarioIndex}`}
+            {scenarios.map((scenario, index) => (
+              <ScenarioCard
+                key={`${report.id}-${scenario.title}-${index}`}
                 scenario={scenario}
-                index={scenarioIndex}
+                index={index}
               />
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#6B7280]">В scenarios нет распознанной аналитики.</p>
+          <p className="text-sm text-[#6B7280]">Сценарии пока не найдены.</p>
         )}
-      </div>
+      </SectionCard>
     </div>
   );
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
-  const [allReportsCount, setAllReportsCount] = useState(0);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [usedFallbackReport, setUsedFallbackReport] = useState(false);
 
   const localReports = reportsRows as ReportRecord[];
 
@@ -553,26 +570,15 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
     const fetchReports = async () => {
       setIsLoadingReports(true);
-      setErrorMessage(null);
-      setUsedFallbackReport(false);
 
-      const { data: reportsData, error } = await supabase
+      const { data: reportsData } = await supabase
         .from("reports")
         .select("id, client_id, client_name, generated_at, status, competitors, trends, scenarios")
         .order("generated_at", { ascending: false });
 
       if (!isMounted) return;
 
-      if (error) {
-        setReports([]);
-        setAllReportsCount(0);
-        setErrorMessage(error.message);
-        setIsLoadingReports(false);
-        return;
-      }
-
       const allReports = (reportsData as ReportRecord[] | null) ?? [];
-      setAllReportsCount(allReports.length);
 
       const matchedReports = allReports
         .map((report) => ({
@@ -585,13 +591,8 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       if (matchedReports.length > 0) {
         setReports(matchedReports);
-        setUsedFallbackReport(false);
-      } else if (allReports.length > 0) {
-        setReports([allReports[0]]);
-        setUsedFallbackReport(true);
       } else {
         setReports([]);
-        setUsedFallbackReport(false);
       }
 
       setIsLoadingReports(false);
@@ -604,128 +605,77 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     };
   }, [data.client.id, data.client.name]);
 
-  const latestReport = reports[0] ?? null;
-  const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
-  const reportCompetitors = useMemo(() => getItemsArray(latestReport?.competitors), [latestReport]);
-  const scenarioAnalytics = useMemo(() => parseScenarioInsights(latestReport?.scenarios), [latestReport]);
+  const visibleReports = useMemo(() => {
+    if (reports.length > 0) return reports;
+    return localReports;
+  }, [reports, localReports]);
+
+  const heroLabel = reports.length > 0 ? "Данные из Supabase" : "Подготовленный отчёт";
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-      <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="rounded-[32px] border border-[#1E1E1E] bg-[#131720] p-6 sm:p-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#38BDF8]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#38BDF8]">
               <ClipboardList className="h-3.5 w-3.5" />
-              Данные из reports
+              ИИ Трендвотчер
             </div>
-            <h3 className="text-lg font-semibold text-white">ИИ Трендвотчер</h3>
-            <p className="mt-1 text-sm text-[#8B93A7]">
-              Во вкладке отображаются реальные поля из таблицы reports для текущего клиента.
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+              Инсайты для {data.client.name}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8B93A7] sm:text-base">
+              Подборка конкурентных идей, трендов и контент-сценариев в понятном и аккуратном формате.
             </p>
           </div>
 
-          {latestReport?.generated_at ? (
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-[#222222] bg-[#111111] px-4 py-2 text-xs text-[#8B93A7]">
-              <Calendar className="h-3.5 w-3.5" />
-              {new Date(latestReport.generated_at).toLocaleString("ru-RU")}
-            </div>
-          ) : null}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              { label: "Тренды", value: visibleReports[0] ? getItemsArray(visibleReports[0].trends).length : 0, color: "#A78BFA" },
+              { label: "Конкуренты", value: visibleReports[0] ? getItemsArray(visibleReports[0].competitors).length : 0, color: "#38BDF8" },
+              { label: "Сценарии", value: visibleReports[0] ? parseScenarioInsights(visibleReports[0].scenarios).length : 0, color: "#34D399" },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-3xl border border-[#1E1E1E] bg-[#101010] p-4"
+              >
+                <div
+                  className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl"
+                  style={{
+                    background: `${item.color}15`,
+                    border: `1px solid ${item.color}25`,
+                  }}
+                >
+                  <TrendingUp className="h-4 w-4" style={{ color: item.color }} />
+                </div>
+                <p className="text-2xl font-bold text-white">{item.value}</p>
+                <p className="mt-1 text-xs text-[#8B93A7]">{item.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {usedFallbackReport && latestReport ? (
-        <div className="rounded-3xl border border-[#FBBF24]/20 bg-[#FBBF24]/10 p-4 text-sm text-[#FDE68A]">
-          Для выбранного клиента точный report не найден, поэтому показан самый свежий доступный отчёт из базы.
-        </div>
-      ) : null}
-
       {isLoadingReports ? (
-        <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] py-16">
+        <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] py-20">
           <div className="flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-[#6B7280]" />
           </div>
         </div>
-      ) : errorMessage ? (
-        <div className="rounded-3xl border border-[#7F1D1D] bg-[#2A1212] p-5">
-          <div className="mb-2 flex items-center gap-2 text-[#FCA5A5]">
-            <AlertCircle className="h-4 w-4" />
-            <p className="text-sm font-semibold">Ошибка загрузки reports</p>
-          </div>
-          <p className="text-sm text-[#FECACA]">{errorMessage}</p>
-        </div>
-      ) : latestReport ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetaCard label="Report ID" value={latestReport.id} icon={<Database className="h-3.5 w-3.5" />} />
-            <MetaCard label="Client ID" value={latestReport.client_id ?? ""} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
-            <MetaCard label="Client Name" value={latestReport.client_name ?? ""} icon={<FileText className="h-3.5 w-3.5" />} />
-            <MetaCard label="Status" value={latestReport.status ?? ""} icon={<Tag className="h-3.5 w-3.5" />} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <ReportColumn title="Тренды" icon={<Flame className="h-4 w-4" />} accent="#A78BFA" items={reportTrends} />
-            <ReportColumn title="Конкуренты" icon={<Target className="h-4 w-4" />} accent="#38BDF8" items={reportCompetitors} />
-          </div>
-
-          <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
-                <Lightbulb className="h-5 w-5" />
-              </div>
-              <div>
-                <h4 className="text-base font-semibold text-white">Аналитика сценариев</h4>
-                <p className="text-sm text-[#8B93A7]">
-                  Содержимое поля reports.scenarios в более удобном и читаемом виде.
-                </p>
-              </div>
-            </div>
-
-            {scenarioAnalytics.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {scenarioAnalytics.map((scenario, index) => (
-                  <ScenarioAnalyticsCard
-                    key={`${scenario.title}-${index}`}
-                    scenario={scenario}
-                    index={index}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
-                <p className="text-sm text-[#6B7280]">В scenarios нет распознанной аналитики.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
-            <h4 className="mb-3 text-sm font-semibold text-white">Raw scenarios</h4>
-            <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-[#9CA3AF]">
-              {getPrettyJson(latestReport.scenarios)}
-            </pre>
-          </div>
-        </>
-      ) : (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-[#7C2D12] bg-[#2A170F] p-5">
-            <div className="mb-2 flex items-center gap-2 text-[#FDBA74]">
-              <ShieldAlert className="h-4 w-4" />
-              <p className="text-sm font-semibold">Supabase не отдает строки в браузер</p>
-            </div>
-            <p className="text-sm text-[#FED7AA]">
-              Сейчас клиентский запрос к таблице <span className="font-semibold">reports</span> возвращает 0 строк.
-              Поэтому ниже показаны все локальные отчёты из приложенного файла.
-            </p>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetaCard label="name" value={data.client.name} icon={<FileText className="h-3.5 w-3.5" />} />
-              <MetaCard label="id" value={data.client.id} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
-              <MetaCard label="reports visible in browser" value={String(allReportsCount)} icon={<Database className="h-3.5 w-3.5" />} />
-              <MetaCard label="local sample rows" value={String(localReports.length)} icon={<ClipboardList className="h-3.5 w-3.5" />} />
-            </div>
-          </div>
-
-          {localReports.map((report, index) => (
-            <LocalReportPreview key={report.id} report={report} index={index} />
+      ) : visibleReports.length > 0 ? (
+        <div className="space-y-6">
+          {visibleReports.map((report, index) => (
+            <ReportShowcase
+              key={report.id}
+              report={report}
+              label={index === 0 ? heroLabel : `Дополнительный отчёт #${index + 1}`}
+            />
           ))}
+        </div>
+      ) : (
+        <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-10 text-center">
+          <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
+          <p className="mt-3 text-sm text-[#6B7280]">Для этого клиента пока нет оформленных инсайтов.</p>
         </div>
       )}
     </div>
