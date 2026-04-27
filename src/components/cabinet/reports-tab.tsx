@@ -32,6 +32,35 @@ interface ReportsTabProps {
   role: AppRole;
 }
 
+const STORAGE_KEY = "dyad-local-work-reports";
+
+function getStorageKey(userId: string) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function readLocalReports(userId: string): ReportEntry[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalReports(userId: string, entries: ReportEntry[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(getStorageKey(userId), JSON.stringify(entries));
+  } catch {
+    return;
+  }
+}
+
 function formatDateForInput(date: Date) {
   return date.toISOString().split("T")[0];
 }
@@ -83,6 +112,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [selectedClient, setSelectedClient] = useState("all");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [isLoading, setIsLoading] = useState(true);
+  const [isLocalMode, setIsLocalMode] = useState(false);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -101,22 +131,27 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       const { data, error } = await query;
 
       if (error) {
-        toast.error("Не удалось загрузить отчёты");
+        const localEntries = readLocalReports(userId);
+        setEntries(localEntries);
+        setIsLocalMode(true);
         setIsLoading(false);
+        toast.success("Отчёты работают в локальном режиме");
         return;
       }
 
-      setEntries(
-        (data ?? []).map((entry) => ({
-          id: entry.id,
-          date: entry.date,
-          client: entry.client_name,
-          task: entry.task,
-          startTime: entry.start_time,
-          endTime: entry.end_time,
-          notes: entry.notes,
-        }))
-      );
+      const nextEntries = (data ?? []).map((entry) => ({
+        id: entry.id,
+        date: entry.date,
+        client: entry.client_name,
+        task: entry.task,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        notes: entry.notes,
+      }));
+
+      setEntries(nextEntries);
+      writeLocalReports(userId, nextEntries);
+      setIsLocalMode(false);
       setIsLoading(false);
     };
 
@@ -139,9 +174,16 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   }, [entries, selectedDate]);
 
   const updateEntry = async (id: string, key: keyof ReportEntry, value: string) => {
-    setEntries((prev) =>
-      prev.map((entry) => (entry.id === id ? { ...entry, [key]: value } : entry))
+    const nextEntries = entries.map((entry) =>
+      entry.id === id ? { ...entry, [key]: value } : entry
     );
+
+    setEntries(nextEntries);
+    writeLocalReports(userId, nextEntries);
+
+    if (isLocalMode) {
+      return;
+    }
 
     const target = entries.find((entry) => entry.id === id);
     if (!target) return;
@@ -161,28 +203,55 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       .eq("id", id);
 
     if (error) {
-      toast.error("Не удалось сохранить изменения");
-      return;
+      setIsLocalMode(true);
+      toast.success("Изменения сохранены локально");
     }
   };
 
   const removeEntry = async (id: string) => {
+    const nextEntries = entries.filter((entry) => entry.id !== id);
+    setEntries(nextEntries);
+    writeLocalReports(userId, nextEntries);
+
+    if (isLocalMode) {
+      toast.success("Запись удалена");
+      return;
+    }
+
     const { error } = await supabase
       .from("work_reports")
       .delete()
       .eq("id", id);
 
     if (error) {
-      toast.error("Не удалось удалить запись");
+      setIsLocalMode(true);
+      toast.success("Запись удалена локально");
       return;
     }
 
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
     toast.success("Запись удалена");
   };
 
   const addEntry = async () => {
     const fallbackClient = clients[0]?.name ?? "";
+
+    if (isLocalMode) {
+      const newEntry: ReportEntry = {
+        id: `local-${Date.now()}`,
+        date: selectedDate,
+        client: selectedClient !== "all" ? selectedClient : fallbackClient,
+        task: "",
+        startTime: "09:00",
+        endTime: "10:00",
+        notes: "",
+      };
+
+      const nextEntries = [newEntry, ...entries];
+      setEntries(nextEntries);
+      writeLocalReports(userId, nextEntries);
+      toast.success("Новая запись добавлена");
+      return;
+    }
 
     const payload = {
       specialist_id: userId,
@@ -201,11 +270,25 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       .single();
 
     if (error) {
-      toast.error("Не удалось добавить запись");
+      const newEntry: ReportEntry = {
+        id: `local-${Date.now()}`,
+        date: selectedDate,
+        client: payload.client_name,
+        task: "",
+        startTime: "09:00",
+        endTime: "10:00",
+        notes: "",
+      };
+
+      const nextEntries = [newEntry, ...entries];
+      setEntries(nextEntries);
+      writeLocalReports(userId, nextEntries);
+      setIsLocalMode(true);
+      toast.success("Запись добавлена локально");
       return;
     }
 
-    setEntries((prev) => [
+    const nextEntries = [
       {
         id: data.id,
         date: data.date,
@@ -215,8 +298,11 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
         endTime: data.end_time,
         notes: data.notes,
       },
-      ...prev,
-    ]);
+      ...entries,
+    ];
+
+    setEntries(nextEntries);
+    writeLocalReports(userId, nextEntries);
     toast.success("Новая запись добавлена");
   };
 
@@ -234,6 +320,11 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               <p className="mt-2 max-w-2xl text-sm text-[#8B93A7]">
                 Ведите отчёт по времени, задачам и клиентам в одном аккуратном табличном интерфейсе.
               </p>
+              {isLocalMode && (
+                <p className="mt-3 text-xs text-[#FBBF24]">
+                  Сейчас включён локальный режим: отчёты сохраняются в этом браузере без Supabase.
+                </p>
+              )}
             </div>
 
             <Button
