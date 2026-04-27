@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import React from "react";
 
 interface FormattedRichTextProps {
   text: string;
@@ -59,43 +60,86 @@ function cleanUrlToken(token: string) {
   return { url, trailing };
 }
 
-function renderInlineFormatting(text: string, keyPrefix: string, accent: string) {
-  const parts = text.split(/(\*\*.*?\*\*|https?:\/\/[^\s<]+)/g).filter(Boolean);
+function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
+  const nodes: React.ReactNode[] = [];
+  const linkRegex = /https?:\/\/[^\s<]+/g;
+  let lastIndex = 0;
+  let matchIndex = 0;
+
+  for (const match of text.matchAll(linkRegex)) {
+    const rawUrl = match[0];
+    const start = match.index ?? 0;
+    const end = start + rawUrl.length;
+
+    if (start > lastIndex) {
+      nodes.push(
+        <React.Fragment key={`${keyPrefix}-text-${matchIndex}`}>
+          {renderBoldText(text.slice(lastIndex, start), `${keyPrefix}-bold-${matchIndex}`)}
+        </React.Fragment>
+      );
+    }
+
+    const { url, trailing } = cleanUrlToken(rawUrl);
+
+    nodes.push(
+      <a
+        key={`${keyPrefix}-link-${matchIndex}`}
+        href={url}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="inline-flex items-center gap-1 break-all underline decoration-1 underline-offset-4 hover:opacity-80"
+        style={{ color: accent }}
+      >
+        <span>{url}</span>
+        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+      </a>
+    );
+
+    if (trailing) {
+      nodes.push(
+        <span key={`${keyPrefix}-trail-${matchIndex}`}>{trailing}</span>
+      );
+    }
+
+    lastIndex = end;
+    matchIndex += 1;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(
+      <React.Fragment key={`${keyPrefix}-text-final`}>
+        {renderBoldText(text.slice(lastIndex), `${keyPrefix}-bold-final`)}
+      </React.Fragment>
+    );
+  }
+
+  if (nodes.length === 0) {
+    return renderBoldText(text, `${keyPrefix}-bold-only`);
+  }
+
+  return nodes;
+}
+
+function renderBoldText(text: string, keyPrefix: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g).filter(Boolean);
 
   return parts.map((part, index) => {
-    const key = `${keyPrefix}-${index}`;
     const isBold = part.startsWith("**") && part.endsWith("**") && part.length > 4;
 
     if (isBold) {
       return (
-        <strong key={key} className="font-semibold text-white">
+        <strong key={`${keyPrefix}-${index}`} className="font-semibold text-white">
           {part.slice(2, -2)}
         </strong>
       );
     }
 
-    if (part.startsWith("http://") || part.startsWith("https://")) {
-      const { url, trailing } = cleanUrlToken(part);
-
-      return (
-        <span key={key} className="relative z-20 inline pointer-events-auto">
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="relative z-20 inline-flex items-center gap-1 break-all underline decoration-1 underline-offset-4 pointer-events-auto cursor-pointer hover:opacity-80"
-            style={{ color: accent }}
-          >
-            <span>{url}</span>
-            <ExternalLink className="h-3 w-3 flex-shrink-0" />
-          </a>
-          {trailing ? <span>{trailing}</span> : null}
-        </span>
-      );
-    }
-
-    return <span key={key}>{part}</span>;
+    return <React.Fragment key={`${keyPrefix}-${index}`}>{part}</React.Fragment>;
   });
+}
+
+function renderInlineFormatting(text: string, keyPrefix: string, accent: string) {
+  return renderTextWithLinks(text, keyPrefix, accent);
 }
 
 function isHeadingLine(line: string) {
