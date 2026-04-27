@@ -102,7 +102,7 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
               </div>
               <h3 className="text-lg font-semibold text-white">Что нужно сделать по клиенту</h3>
               <p className="mt-1 max-w-2xl text-sm text-[#8B93A7]">
-                Специалист сам ведёт недельный план, отмечает выполненные пункты, а готовые задачи автоматически зачеркиваются.
+                Специалист сам ведёт недельный план, отмечает выполненные пункты, а готовые задачи автоматически зачеркиваются и сохраняются в Supabase.
               </p>
             </div>
 
@@ -183,7 +183,7 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
 
             {!loading && tasks.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#121212] p-6 text-center text-sm text-[#8B93A7]">
-                Пока нет задач. Добавьте первый пункт недельного плана — он сохранится в Supabase.
+                Пока нет задач. Добавьте первый пункт недельного плана — он сохранится в базе.
               </div>
             ) : null}
           </div>
