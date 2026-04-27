@@ -535,80 +535,132 @@ export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
             </section>
           </>
         ) : company ? (
-          <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <section className="rounded-[28px] border border-[#1E1E1E] bg-[#141414] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
               <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[10px] font-semibold text-[#7DD3FC]">
                   <Briefcase className="h-3.5 w-3.5" />
                   Карточка компании
                 </div>
-                <h2 className="text-2xl font-semibold text-white">{company.companyName}</h2>
-                <p className="mt-2 text-sm text-[#8B93A7]">
-                  Назначенный SMM: {company.assignedSpecialistName}
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-semibold text-white">{company.companyName}</h2>
+                  <StatusBadge status={company.healthStatus} />
+                </div>
+                <p className="mt-1 text-sm text-[#8B93A7]">
+                  SMM: {company.assignedSpecialistName}
                 </p>
               </div>
-              <StatusBadge status={company.healthStatus} />
+
+              <button
+                onClick={() => onOpenClient(company.companyId)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-2.5 text-sm font-semibold text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20"
+              >
+                Открыть workspace
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-4">
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Отчёт сегодня</p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {company.reportSubmittedToday ? "Есть" : "Нет"}
-                </p>
-              </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">План недели</p>
-                <p className="mt-2 text-lg font-semibold text-white">
+            <div className="grid gap-3 lg:grid-cols-4 2xl:grid-cols-8">
+              {[
+                {
+                  label: "Отчёт",
+                  value: company.reportSubmittedToday ? "Есть" : "Нет",
+                },
+                {
+                  label: "План",
+                  value: `${company.weeklyPlanDone}/${company.weeklyPlanTotal}`,
+                },
+                {
+                  label: "Прогресс",
+                  value: `${getProgressPercent(company.weeklyPlanDone, company.weeklyPlanTotal)}%`,
+                },
+                {
+                  label: "Охват",
+                  value: company.kpi.reach.toLocaleString("ru-RU"),
+                },
+                {
+                  label: "Рост",
+                  value: `+${company.kpi.growth.toLocaleString("ru-RU")}`,
+                },
+                {
+                  label: "Лиды",
+                  value: String(company.kpi.leads),
+                },
+                {
+                  label: "Контроллер",
+                  value: company.controllerEscalation
+                    ? "Эскалация"
+                    : company.controllerFlag
+                    ? "Флаг"
+                    : "ОК",
+                },
+                {
+                  label: "Апдейт",
+                  value: company.lastUpdate,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-[#242424] bg-[#111111] px-3 py-3"
+                >
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
+                    {item.label}
+                  </p>
+                  <p className="mt-1.5 text-sm font-semibold text-white break-words">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-[#242424] bg-[#111111] p-3">
+              <div className="mb-2 flex items-center justify-between text-[11px] text-[#B6C0D4]">
+                <span>Недельный прогресс</span>
+                <span>
                   {company.weeklyPlanDone}/{company.weeklyPlanTotal}
-                </p>
+                </span>
               </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Охват</p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {company.kpi.reach.toLocaleString("ru-RU")}
-                </p>
-              </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Лиды</p>
-                <p className="mt-2 text-lg font-semibold text-white">{company.kpi.leads}</p>
+              <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${getProgressPercent(company.weeklyPlanDone, company.weeklyPlanTotal)}%`,
+                    background:
+                      company.healthStatus === "green"
+                        ? "#34D399"
+                        : company.healthStatus === "yellow"
+                        ? "#FBBF24"
+                        : "#F87171",
+                  }}
+                />
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Что влияет на статус</p>
-                <div className="space-y-3">
-                  {company.alertReasons.map((reason) => (
+            <div className="mt-3 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                <p className="mb-3 text-sm font-semibold text-white">Ключевые причины статуса</p>
+                <div className="grid gap-2">
+                  {(company.alertReasons.length > 0
+                    ? company.alertReasons
+                    : ["Критичных замечаний нет"]).slice(0, 4).map((reason) => (
                     <div
                       key={reason}
-                      className="rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 py-3 text-sm text-[#D1D5DB]"
+                      className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2 text-sm text-[#D1D5DB]"
                     >
                       {reason}
                     </div>
                   ))}
-                  {company.alertReasons.length === 0 ? (
-                    <div className="rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 py-3 text-sm text-[#D1D5DB]">
-                      Критичных замечаний нет.
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Контроллер и апдейты</p>
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-[#2A2A2A] bg-[#171717] p-4">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                      Последнее обновление
+              <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                <p className="mb-3 text-sm font-semibold text-white">Контроллер и действия</p>
+                <div className="grid gap-2">
+                  <div className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
+                      Сигнал
                     </p>
-                    <p className="mt-2 text-sm text-white">{company.lastUpdate}</p>
-                  </div>
-                  <div className="rounded-2xl border border-[#2A2A2A] bg-[#171717] p-4">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                      Флаг контроллера
-                    </p>
-                    <p className="mt-2 text-sm text-white">
+                    <p className="mt-1 text-sm text-white">
                       {company.controllerEscalation
                         ? "Есть эскалация"
                         : company.controllerFlag
@@ -616,13 +668,19 @@ export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
                         : "Замечаний нет"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => onOpenClient(company.companyId)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-3 text-sm font-semibold text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20"
-                  >
-                    Открыть workspace клиента
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
+
+                  <div className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
+                      Руководителю
+                    </p>
+                    <p className="mt-1 text-sm text-white">
+                      {company.healthStatus === "red"
+                        ? "Нужно вмешательство"
+                        : company.healthStatus === "yellow"
+                        ? "Нужно проверить вручную"
+                        : "Ситуация стабильна"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
