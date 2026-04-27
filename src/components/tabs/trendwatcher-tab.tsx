@@ -79,15 +79,37 @@ function getItemsArray(value: unknown): string[] {
     return value
       .map((item) => {
         if (typeof item === "string") return item;
-        if (item && typeof item === "object") return JSON.stringify(item);
+        if (item && typeof item === "object") {
+          const objectItem = item as Record<string, unknown>;
+          return (
+            objectItem.title ??
+            objectItem.topic ??
+            objectItem.name ??
+            objectItem.format ??
+            JSON.stringify(item)
+          ) as string;
+        }
         return String(item);
       })
       .filter(Boolean);
   }
 
   if (typeof value === "string") {
-    return value
-      .split(/\n+|•|\-|\*/)
+    const trimmed = value.trim();
+
+    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+      try {
+        return getItemsArray(JSON.parse(trimmed));
+      } catch {
+        return trimmed
+          .split(/\n+|•/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+
+    return trimmed
+      .split(/\n+|•/)
       .map((item) => item.trim())
       .filter(Boolean);
   }
@@ -95,7 +117,20 @@ function getItemsArray(value: unknown): string[] {
   if (value && typeof value === "object") {
     return Object.values(value as Record<string, unknown>).flatMap((item) =>
       Array.isArray(item)
-        ? item.map((nested) => (typeof nested === "string" ? nested : JSON.stringify(nested)))
+        ? item.map((nested) => {
+            if (typeof nested === "string") return nested;
+            if (nested && typeof nested === "object") {
+              const objectItem = nested as Record<string, unknown>;
+              return (
+                objectItem.title ??
+                objectItem.topic ??
+                objectItem.name ??
+                objectItem.format ??
+                JSON.stringify(nested)
+              ) as string;
+            }
+            return String(nested);
+          })
         : typeof item === "string"
         ? [item]
         : []
