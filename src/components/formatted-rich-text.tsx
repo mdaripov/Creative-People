@@ -76,8 +76,7 @@ function renderInlineFormatting(text: string, keyPrefix: string, accent: string)
       );
     }
 
-    if (URL_REGEX.test(part)) {
-      URL_REGEX.lastIndex = 0;
+    if (part.startsWith("http://") || part.startsWith("https://")) {
       const { url, trailing } = cleanUrlToken(part);
 
       return (
