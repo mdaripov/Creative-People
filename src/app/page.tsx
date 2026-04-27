@@ -21,6 +21,7 @@ export default function Home() {
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("home");
+  const [clientSourceView, setClientSourceView] = useState<"clients" | "cabinet">("clients");
   const [supabaseClients, setSupabaseClients] = useState<Array<{ id: string; name: string }>>([]);
   const { session, profile, loading, signOut } = useSession();
   const { assignedClientIds, toggleClient } = useSpecialistClients(
@@ -59,10 +60,15 @@ export default function Home() {
     setSupabaseClients(clients);
   }, []);
 
-  const handleSelectClient = (id: string, name?: string) => {
+  const handleSelectClient = (
+    id: string,
+    name?: string,
+    sourceView: "clients" | "cabinet" = "clients"
+  ) => {
     setSelectedClientId(id);
     setSelectedClientName(name ?? null);
-    setMainView("clients");
+    setClientSourceView(sourceView);
+    setMainView(sourceView);
     setSidebarOpen(false);
   };
 
@@ -77,6 +83,7 @@ export default function Home() {
     setSelectedClientId(null);
     setSelectedClientName(null);
     setMainView("clients");
+    setClientSourceView("clients");
     setSidebarOpen(false);
   };
 
@@ -84,6 +91,7 @@ export default function Home() {
     setSelectedClientId(null);
     setSelectedClientName(null);
     setMainView("cabinet");
+    setClientSourceView("cabinet");
     setSidebarOpen(false);
   };
 
@@ -98,6 +106,8 @@ export default function Home() {
   if (!session || !profile) {
     return <LoginScreen />;
   }
+
+  const showCabinetSidebar = mainView === "cabinet" || (selectedData && clientSourceView === "cabinet");
 
   return (
     <div className="flex h-screen bg-[#0F0F0F] overflow-hidden">
@@ -120,11 +130,13 @@ export default function Home() {
           <div className="min-h-0 flex-1">
             <ClientSidebar
               selectedClientId={selectedClientId}
-              onSelectClient={handleSelectClient}
+              onSelectClient={(id, name) =>
+                handleSelectClient(id, name, showCabinetSidebar ? "cabinet" : "clients")
+              }
               assignedClientIds={assignedClientIds}
               onToggleAssignClient={toggleClient}
               onClientsLoaded={handleClientsLoaded}
-              mode={mainView === "cabinet" ? "cabinet" : "default"}
+              mode={showCabinetSidebar ? "cabinet" : "default"}
               onOpenMentor={handleOpenMentor}
             />
           </div>
@@ -142,6 +154,8 @@ export default function Home() {
           <span className="text-sm font-semibold text-white">
             {mainView === "mentor"
               ? "ИИ СММ наставник"
+              : showCabinetSidebar && selectedData
+              ? selectedData.client.name
               : mainView === "cabinet"
               ? "Личный кабинет"
               : mainView === "clients" && selectedData
@@ -167,11 +181,11 @@ export default function Home() {
             <EmptyState onSelectView={(view) => setMainView(view)} />
           ) : mainView === "mentor" ? (
             <MentorChatView />
-          ) : mainView === "cabinet" ? (
+          ) : mainView === "cabinet" && !selectedData ? (
             <PersonalCabinet
               assignedClientIds={assignedClientIds}
               allClients={allClients}
-              onOpenClient={handleSelectClient}
+              onOpenClient={(id, name) => handleSelectClient(id, name, "cabinet")}
               userId={session.user.id}
               profile={profile}
               role={profile.role}
@@ -179,7 +193,10 @@ export default function Home() {
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} userId={session.user.id} role={profile.role} />
           ) : (
-            <ClientsOverview clients={allClients} onOpenClient={handleSelectClient} />
+            <ClientsOverview
+              clients={allClients}
+              onOpenClient={(id, name) => handleSelectClient(id, name, "clients")}
+            />
           )}
         </div>
       </main>
