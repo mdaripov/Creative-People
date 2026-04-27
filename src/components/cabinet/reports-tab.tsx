@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { getReadableAuthError } from "@/lib/auth-error";
 import type { AppRole } from "@/lib/auth";
 
 interface ReportEntry {
@@ -30,35 +31,6 @@ interface ReportsTabProps {
   clients: Array<{ id: string; name: string }>;
   userId: string;
   role: AppRole;
-}
-
-const STORAGE_KEY = "dyad-local-work-reports";
-
-function getStorageKey(userId: string) {
-  return `${STORAGE_KEY}:${userId}`;
-}
-
-function readLocalReports(userId: string): ReportEntry[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalReports(userId: string, entries: ReportEntry[]) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(getStorageKey(userId), JSON.stringify(entries));
-  } catch {
-    return;
-  }
 }
 
 function formatDateForInput(date: Date) {
@@ -112,7 +84,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [selectedClient, setSelectedClient] = useState("all");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [isLoading, setIsLoading] = useState(true);
-  const [isLocalMode, setIsLocalMode] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -131,26 +103,23 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       const { data, error } = await query;
 
       if (error) {
-        const localEntries = readLocalReports(userId);
-        setEntries(localEntries);
-        setIsLocalMode(true);
+        toast.error(getReadableAuthError(error));
+        setEntries([]);
         setIsLoading(false);
         return;
       }
 
-      const nextEntries = (data ?? []).map((entry) => ({
-        id: entry.id,
-        date: entry.date,
-        client: entry.client_name,
-        task: entry.task,
-        startTime: entry.start_time,
-        endTime: entry.end_time,
-        notes: entry.notes,
-      }));
-
-      setEntries(nextEntries);
-      writeLocalReports(userId, nextEntries);
-      setIsLocalMode(false);
+      setEntries(
+        (data ?? []).map((entry) => ({
+          id: entry.id,
+          date: entry.date,
+          client: entry.client_name,
+          task: entry.task,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          notes: entry.notes,
+        }))
+      );
       setIsLoading(false);
     };
 
@@ -172,84 +141,94 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     return addDurations(durations);
   }, [entries, selectedDate]);
 
+  const saveEntry = async (entry: ReportEntry) => {
+    const { error } = await supabase
+      .from("work_reports")
+      .update({
+        date: entry.date,
+        client_name: entry.client,
+        task: entry.task.trim() || "Новая задача",
+        start_time: entry.startTime,
+        end_time: entry.endTime,
+        notes: entry.notes,
+      })
+      .eq("id", entry.id);
+
+    if (error) {
+      toast.error(getReadableAuthError(error));
+      return false;
+    }
+
+    return true;
+  };
+
   const updateEntry = async (id: string, key: keyof ReportEntry, value: string) => {
     const nextEntries = entries.map((entry) =>
       entry.id === id ? { ...entry, [key]: value } : entry
     );
 
     setEntries(nextEntries);
-    writeLocalReports(userId, nextEntries);
-
-    if (isLocalMode) {
-      return;
-    }
 
     const target = nextEntries.find((entry) => entry.id === id);
     if (!target) return;
 
-    const { error } = await supabase
-      .from("work_reports")
-      .update({
-        date: target.date,
-        client_name: target.client,
-        task: target.task || "Без названия задачи",
-        start_time: target.startTime,
-        end_time: target.endTime,
-        notes: target.notes,
-      })
-      .eq("id", id);
+    const ok = await saveEntry(target);
+    if (!ok) {
+      const { data } = await supabase
+        .from("work_reports")
+        .select("id, date, client_name, task, start_time, end_time, notes")
+        .eq("id", id)
+        .single();
 
-    if (error) {
-      setIsLocalMode(true);
-      toast.error("Не удалось обновить запись в Supabase. Изменения сохранены локально.");
+      if (data) {
+        setEntries((prev) =>
+          prev.map((entry) =>
+            entry.id === id
+              ? {
+                  id: data.id,
+                  date: data.date,
+                  client: data.client_name,
+                  task: data.task,
+                  startTime: data.start_time,
+                  endTime: data.end_time,
+                  notes: data.notes,
+                }
+              : entry
+          )
+        );
+      }
     }
   };
 
   const removeEntry = async (id: string) => {
-    const nextEntries = entries.filter((entry) => entry.id !== id);
-    setEntries(nextEntries);
-    writeLocalReports(userId, nextEntries);
-
-    if (isLocalMode) {
-      toast.success("Запись удалена");
-      return;
-    }
+    setIsMutating(true);
 
     const { error } = await supabase
       .from("work_reports")
       .delete()
       .eq("id", id);
 
+    setIsMutating(false);
+
     if (error) {
-      setIsLocalMode(true);
-      toast.error("Не удалось удалить запись из Supabase. Удаление выполнено локально.");
+      toast.error(getReadableAuthError(error));
       return;
     }
 
+    setEntries((prev) => prev.filter((entry) => entry.id !== id));
     toast.success("Запись удалена");
   };
 
   const addEntry = async () => {
     const fallbackClient =
-      selectedClient !== "all" ? selectedClient : clients[0]?.name ?? "Новый клиент";
+      selectedClient !== "all" ? selectedClient : clients[0]?.name ?? "";
 
-    const optimisticEntry: ReportEntry = {
-      id: `local-${Date.now()}`,
-      date: selectedDate,
-      client: fallbackClient,
-      task: "",
-      startTime: "09:00",
-      endTime: "10:00",
-      notes: "",
-    };
-
-    if (isLocalMode) {
-      const nextEntries = [optimisticEntry, ...entries];
-      setEntries(nextEntries);
-      writeLocalReports(userId, nextEntries);
-      toast.success("Новая запись добавлена локально");
+    if (!fallbackClient) {
+      toast.error("Сначала должен быть доступен хотя бы один клиент");
       return;
     }
+
+    setIsMutating(true);
 
     const { data, error } = await supabase
       .from("work_reports")
@@ -265,16 +244,14 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       .select("id, date, client_name, task, start_time, end_time, notes")
       .single();
 
+    setIsMutating(false);
+
     if (error || !data) {
-      const nextEntries = [optimisticEntry, ...entries];
-      setEntries(nextEntries);
-      writeLocalReports(userId, nextEntries);
-      setIsLocalMode(true);
-      toast.error("Не удалось добавить запись в Supabase. Запись сохранена локально.");
+      toast.error(getReadableAuthError(error));
       return;
     }
 
-    const nextEntries = [
+    setEntries((prev) => [
       {
         id: data.id,
         date: data.date,
@@ -284,12 +261,9 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
         endTime: data.end_time,
         notes: data.notes,
       },
-      ...entries,
-    ];
+      ...prev,
+    ]);
 
-    setEntries(nextEntries);
-    writeLocalReports(userId, nextEntries);
-    setIsLocalMode(false);
     toast.success("Новая запись добавлена");
   };
 
@@ -307,18 +281,18 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               <p className="mt-2 max-w-2xl text-sm text-[#8B93A7]">
                 Ведите отчёт по времени, задачам и клиентам в одном аккуратном табличном интерфейсе.
               </p>
-              {isLocalMode && (
-                <p className="mt-3 text-xs text-[#FBBF24]">
-                  Сейчас включён локальный режим: отчёты сохраняются в этом браузере без Supabase.
-                </p>
-              )}
             </div>
 
             <Button
               onClick={addEntry}
-              className="rounded-2xl bg-[#38BDF8] px-4 text-white hover:bg-[#22AEEA]"
+              disabled={isMutating}
+              className="rounded-2xl bg-[#38BDF8] px-4 text-white hover:bg-[#22AEEA] disabled:opacity-60"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              {isMutating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Быстро добавить запись
             </Button>
           </div>
@@ -415,7 +389,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       <Input
                         type="date"
                         value={entry.date}
-                        onChange={(event) => updateEntry(entry.id, "date", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "date", event.target.value)}
                         className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white"
                       />
                     </td>
@@ -423,7 +397,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       <input
                         list={`clients-${entry.id}`}
                         value={entry.client}
-                        onChange={(event) => updateEntry(entry.id, "client", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "client", event.target.value)}
                         className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
                         placeholder="Название клиента"
                       />
@@ -436,7 +410,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                     <td className="px-4 py-3">
                       <textarea
                         value={entry.task}
-                        onChange={(event) => updateEntry(entry.id, "task", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "task", event.target.value)}
                         className="min-h-[88px] w-full min-w-[280px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
                         placeholder="Описание выполненной задачи"
                       />
@@ -445,7 +419,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       <Input
                         type="time"
                         value={entry.startTime}
-                        onChange={(event) => updateEntry(entry.id, "startTime", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "startTime", event.target.value)}
                         className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
                       />
                     </td>
@@ -453,7 +427,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       <Input
                         type="time"
                         value={entry.endTime}
-                        onChange={(event) => updateEntry(entry.id, "endTime", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "endTime", event.target.value)}
                         className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
                       />
                     </td>
@@ -465,15 +439,16 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                     <td className="px-4 py-3">
                       <textarea
                         value={entry.notes}
-                        onChange={(event) => updateEntry(entry.id, "notes", event.target.value)}
+                        onChange={(event) => void updateEntry(entry.id, "notes", event.target.value)}
                         className="min-h-[88px] w-full min-w-[260px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
                         placeholder="Ссылки, графика, комментарии"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => removeEntry(entry.id)}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20"
+                        onClick={() => void removeEntry(entry.id)}
+                        disabled={isMutating}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:opacity-60"
                       >
                         <Trash2 className="h-4 w-4" />
                         Удалить
