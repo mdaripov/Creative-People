@@ -101,11 +101,13 @@ export default function Home() {
         <div className="flex h-full flex-col border-r border-[#1E1E1E] bg-[#111111]">
           <div className="min-h-0 flex-1">
             <ClientSidebar
-              selectedClientId={mainView === "clients" ? selectedClientId : null}
+              selectedClientId={selectedClientId}
               onSelectClient={handleSelectClient}
               assignedClientIds={assignedClientIds}
               onToggleAssignClient={toggleClient}
               onClientsLoaded={handleClientsLoaded}
+              mode={mainView === "cabinet" ? "cabinet" : "default"}
+              onOpenMentor={handleOpenMentor}
             />
           </div>
         </div>
