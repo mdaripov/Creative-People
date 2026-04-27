@@ -72,7 +72,7 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
               <Megaphone className="h-3.5 w-3.5" />
               Hook
             </div>
-            <p className="text-sm leading-7 text-[#E5E7EB]">{item.hook}</p>
+            <FormattedRichText text={item.hook} accent="#A78BFA" compact />
           </div>
         ) : null}
 
@@ -81,7 +81,7 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
             <Layers3 className="h-3.5 w-3.5" />
             Структура
           </div>
-          <p className="text-sm leading-7 text-[#E5E7EB]">{item.structure}</p>
+          <FormattedRichText text={item.structure} accent="#34D399" compact />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -89,16 +89,22 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
               CTA
             </p>
-            <p className="text-sm leading-7 text-[#E5E7EB]">{item.cta || "Добавить явный следующий шаг"}</p>
+            <FormattedRichText
+              text={item.cta || "Добавить явный следующий шаг"}
+              accent="#38BDF8"
+              compact
+            />
           </div>
 
           <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
               Ожидаемый эффект
             </p>
-            <p className="text-sm leading-7 text-[#E5E7EB]">
-              {item.expectedEffect || "Оценить после первого теста"}
-            </p>
+            <FormattedRichText
+              text={item.expectedEffect || "Оценить после первого теста"}
+              accent="#FBBF24"
+              compact
+            />
           </div>
         </div>
 

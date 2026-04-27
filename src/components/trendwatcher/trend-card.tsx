@@ -91,7 +91,7 @@ export function TrendCard({ item, viewMode }: TrendCardProps) {
           <Lightbulb className="h-3.5 w-3.5" />
           Почему это важно
         </div>
-        <p className="text-sm leading-7 text-[#E5E7EB]">{item.whyItMatters}</p>
+        <FormattedRichText text={item.whyItMatters} accent="#A78BFA" compact />
       </div>
 
       {viewMode === "detailed" ? (

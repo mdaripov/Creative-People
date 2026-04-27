@@ -33,7 +33,7 @@ export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
             <Telescope className="h-3.5 w-3.5" />
             Наблюдение
           </div>
-          <p className="text-sm leading-7 text-[#E5E7EB]">{item.observation}</p>
+          <FormattedRichText text={item.observation} accent="#38BDF8" compact />
         </div>
 
         <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
@@ -41,7 +41,7 @@ export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
             <Lightbulb className="h-3.5 w-3.5" />
             Что сработало
           </div>
-          <p className="text-sm leading-7 text-[#E5E7EB]">{item.insight}</p>
+          <FormattedRichText text={item.insight} accent="#A78BFA" compact />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -50,7 +50,7 @@ export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
               <Compass className="h-3.5 w-3.5" />
               Что адаптировать
             </div>
-            <p className="text-sm leading-7 text-[#E5E7EB]">{item.recommendation}</p>
+            <FormattedRichText text={item.recommendation} accent="#34D399" compact />
           </div>
 
           <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
@@ -58,7 +58,7 @@ export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
               <CopyMinus className="h-3.5 w-3.5" />
               Риск копирования
             </div>
-            <p className="text-sm leading-7 text-[#E5E7EB]">{item.differentiation}</p>
+            <FormattedRichText text={item.differentiation} accent="#FBBF24" compact />
           </div>
         </div>
       </div>
