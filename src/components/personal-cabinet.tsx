@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  BarChart3,
   Briefcase,
   CheckCircle2,
   FileSpreadsheet,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { createClientData } from "@/lib/mock-data";
 import { ReportsTab } from "@/components/cabinet/reports-tab";
+import { ManagerDashboard } from "@/components/manager-dashboard";
 import type { AppRole, UserProfile } from "@/lib/auth";
 
 interface PersonalCabinetProps {
@@ -21,7 +23,7 @@ interface PersonalCabinetProps {
   role: AppRole;
 }
 
-type CabinetTab = "overview" | "reports";
+type CabinetTab = "manager" | "overview" | "reports";
 
 export function PersonalCabinet({
   assignedClientIds,
@@ -31,7 +33,9 @@ export function PersonalCabinet({
   profile,
   role,
 }: PersonalCabinetProps) {
-  const [activeTab, setActiveTab] = useState<CabinetTab>("overview");
+  const [activeTab, setActiveTab] = useState<CabinetTab>(
+    role === "manager" ? "manager" : "overview"
+  );
 
   const assignedClients = useMemo(() => {
     if (role === "manager") {
@@ -47,11 +51,53 @@ export function PersonalCabinet({
     [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
     "Пользователь";
 
+  if (role === "manager" && activeTab === "manager") {
+    return (
+      <div className="h-full overflow-hidden bg-[#0F0F0F] animate-fade-in">
+        <div className="border-b border-[#1A1A1A] px-4 py-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("manager")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-2.5 text-xs font-semibold text-[#38BDF8]"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab("overview")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+            >
+              <UserCircle2 className="h-3.5 w-3.5" />
+              Обзор
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Отчёты
+            </button>
+          </div>
+        </div>
+        <ManagerDashboard onOpenClient={(id) => onOpenClient(id)} />
+      </div>
+    );
+  }
+
   if (activeTab === "reports") {
     return (
       <div className="h-full overflow-hidden bg-[#0F0F0F] animate-fade-in">
         <div className="border-b border-[#1A1A1A] px-4 py-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto">
+            {role === "manager" && (
+              <button
+                onClick={() => setActiveTab("manager")}
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Dashboard
+              </button>
+            )}
             <button
               onClick={() => setActiveTab("overview")}
               className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
@@ -77,6 +123,15 @@ export function PersonalCabinet({
     <div className="h-full overflow-y-auto bg-[#0F0F0F] p-4 sm:p-6 animate-fade-in">
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex gap-2 overflow-x-auto">
+          {role === "manager" && (
+            <button
+              onClick={() => setActiveTab("manager")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Dashboard
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("overview")}
             className="inline-flex items-center gap-2 rounded-2xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 py-2.5 text-xs font-semibold text-[#34D399]"
@@ -107,7 +162,7 @@ export function PersonalCabinet({
                 <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
                 <p className="mt-1 text-sm text-[#8B93A7]">
                   {role === "manager"
-                    ? "Вы видите все личные кабинеты и отчёты команды."
+                    ? "Вы видите executive overview агентства, личные кабинеты и отчёты команды."
                     : "Здесь собраны закреплённые за вами клиенты и ваш быстрый доступ к работе."}
                 </p>
               </div>

@@ -31,6 +31,12 @@ export default function Home() {
   );
 
   useEffect(() => {
+    if (profile?.role === "manager") {
+      setMainView((current) => (current === "home" ? "cabinet" : current));
+    }
+  }, [profile?.role]);
+
+  useEffect(() => {
     if (!selectedClientId && !selectedClientName) return;
 
     const clientStillInDemoSet = selectedClientId ? selectedClientId in allClientsData : false;
@@ -173,7 +179,9 @@ export default function Home() {
               : showCabinetSidebar && selectedData
               ? selectedData.client.name
               : mainView === "cabinet"
-              ? "Личный кабинет"
+              ? profile.role === "manager"
+                ? "Dashboard руководителя"
+                : "Личный кабинет"
               : mainView === "clients" && selectedData
               ? selectedData.client.name
               : mainView === "clients"
@@ -183,7 +191,7 @@ export default function Home() {
         </div>
 
         <DashboardNav
-          mainView={mainView === "home" ? "clients" : mainView}
+          mainView={mainView === "home" ? (profile.role === "manager" ? "cabinet" : "clients") : mainView}
           onClientsClick={handleOpenClients}
           onMentorClick={handleOpenMentor}
           onCabinetClick={handleOpenCabinet}
@@ -194,7 +202,18 @@ export default function Home() {
 
         <div className="flex-1 overflow-hidden">
           {mainView === "home" ? (
-            <EmptyState onSelectView={(view) => setMainView(view)} />
+            profile.role === "manager" ? (
+              <PersonalCabinet
+                assignedClientIds={assignedClientIds}
+                allClients={allClients}
+                onOpenClient={(id, name) => handleSelectClient(id, name, "cabinet")}
+                userId={session.user.id}
+                profile={profile}
+                role={profile.role}
+              />
+            ) : (
+              <EmptyState onSelectView={(view) => setMainView(view)} />
+            )
           ) : mainView === "mentor" ? (
             <MentorChatView />
           ) : mainView === "cabinet" && !selectedData ? (
