@@ -14,13 +14,9 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
+import { useControllerPlan } from "@/hooks/use-controller-plan";
+import type { AppRole } from "@/lib/auth";
 import type { ClientData } from "@/lib/mock-data";
-
-interface SpecialistTask {
-  id: string;
-  title: string;
-  done: boolean;
-}
 
 function formatNumber(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -30,17 +26,19 @@ function formatNumber(n: number): string {
 
 interface ControllerTabProps {
   data: ClientData;
+  userId: string;
+  role: AppRole;
 }
 
-export function ControllerTab({ data }: ControllerTabProps) {
-  const [tasks, setTasks] = useState<SpecialistTask[]>([
-    { id: "task-1", title: `Подготовить контент-план для ${data.client.name}`, done: true },
-    { id: "task-2", title: "Согласовать 3 темы для Reels", done: false },
-    { id: "task-3", title: "Проверить публикации за неделю", done: false },
-  ]);
+export function ControllerTab({ data, userId, role }: ControllerTabProps) {
   const [newTask, setNewTask] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [reviewReady, setReviewReady] = useState(false);
+  const { tasks, loading, saving, addTask, toggleTask } = useControllerPlan(
+    data.client.id,
+    userId,
+    role
+  );
 
   const doneCount = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
@@ -77,26 +75,11 @@ export function ControllerTab({ data }: ControllerTabProps) {
     };
   }, [data.bestReel.views, data.linkedInStats.published, doneCount, tasks.length]);
 
-  const toggleTask = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, done: !task.done } : task
-      )
-    );
-  };
-
-  const addTask = () => {
+  const handleAddTask = async () => {
     const value = newTask.trim();
     if (!value) return;
 
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: `task-${Date.now()}`,
-        title: value,
-        done: false,
-      },
-    ]);
+    await addTask(value);
     setNewTask("");
   };
 
@@ -149,7 +132,7 @@ export function ControllerTab({ data }: ControllerTabProps) {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    addTask();
+                    void handleAddTask();
                   }
                 }}
                 placeholder="Добавить новый пункт плана..."
@@ -157,19 +140,24 @@ export function ControllerTab({ data }: ControllerTabProps) {
               />
             </div>
             <button
-              onClick={addTask}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 text-sm font-medium text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20"
+              onClick={() => void handleAddTask()}
+              disabled={saving}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 text-sm font-medium text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20 disabled:opacity-60"
             >
-              <Plus className="h-4 w-4" />
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Добавить задачу
             </button>
           </div>
 
           <div className="space-y-3">
-            {tasks.map((task) => (
+            {loading ? (
+              <div className="rounded-3xl border border-[#222222] bg-[#121212] p-6 text-center">
+                <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#8B93A7]" />
+              </div>
+            ) : tasks.map((task) => (
               <button
                 key={task.id}
-                onClick={() => toggleTask(task.id)}
+                onClick={() => void toggleTask(task.id)}
                 className="flex w-full items-start gap-3 rounded-3xl border border-[#222222] bg-[#121212] px-4 py-4 text-left transition-all duration-200 hover:bg-[#171717]"
               >
                 <div className="pt-0.5">
@@ -193,9 +181,9 @@ export function ControllerTab({ data }: ControllerTabProps) {
               </button>
             ))}
 
-            {tasks.length === 0 ? (
+            {!loading && tasks.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#121212] p-6 text-center text-sm text-[#8B93A7]">
-                Пока нет задач. Добавьте первый пункт недельного плана.
+                Пока нет задач. Добавьте первый пункт недельного плана — он сохранится в Supabase.
               </div>
             ) : null}
           </div>

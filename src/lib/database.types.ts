@@ -41,6 +41,89 @@ export type Database = {
           }
         ];
       };
+      controller_plan_tasks: {
+        Row: {
+          client_id: string;
+          created_at: string;
+          done: boolean;
+          id: string;
+          plan_id: string;
+          specialist_id: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          client_id: string;
+          created_at?: string;
+          done?: boolean;
+          id?: string;
+          plan_id: string;
+          specialist_id: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          client_id?: string;
+          created_at?: string;
+          done?: boolean;
+          id?: string;
+          plan_id?: string;
+          specialist_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "controller_plan_tasks_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "controller_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "controller_plan_tasks_specialist_id_fkey";
+            columns: ["specialist_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      controller_plans: {
+        Row: {
+          client_id: string;
+          created_at: string;
+          id: string;
+          specialist_id: string;
+          updated_at: string;
+          week_start: string;
+        };
+        Insert: {
+          client_id: string;
+          created_at?: string;
+          id?: string;
+          specialist_id: string;
+          updated_at?: string;
+          week_start: string;
+        };
+        Update: {
+          client_id?: string;
+          created_at?: string;
+          id?: string;
+          specialist_id?: string;
+          updated_at?: string;
+          week_start?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "controller_plans_specialist_id_fkey";
+            columns: ["specialist_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;

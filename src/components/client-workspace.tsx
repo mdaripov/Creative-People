@@ -64,7 +64,14 @@ export function ClientWorkspace({
         {activeTab === "smm-chat" && <SmmChatTab key={`smm-chat-${data.client.id}`} data={data} userId={userId} role={role} />}
         {activeTab === "smm-approved" && <SmmApprovedTab key={`smm-approved-${data.client.id}`} data={data} userId={userId} role={role} />}
         {activeTab === "linkedin" && <LinkedInTab key={`linkedin-${data.client.id}`} data={data} />}
-        {activeTab === "controller" && <ControllerTab key={`controller-${data.client.id}`} data={data} />}
+        {activeTab === "controller" && (
+          <ControllerTab
+            key={`controller-${data.client.id}`}
+            data={data}
+            userId={userId}
+            role={role}
+          />
+        )}
       </div>
     </div>
   );
