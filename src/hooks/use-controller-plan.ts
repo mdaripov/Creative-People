@@ -12,13 +12,34 @@ export interface ControllerTask {
   done: boolean;
 }
 
-function getWeekStartDate() {
-  const date = new Date();
-  const day = date.getDay();
+export interface ControllerWeekOption {
+  planId: string;
+  weekStart: string;
+  label: string;
+  taskCount: number;
+  doneCount: number;
+}
+
+function getWeekStartDate(date = new Date()) {
+  const value = new Date(date);
+  const day = value.getDay();
   const diff = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date.toISOString().split("T")[0];
+  value.setDate(value.getDate() + diff);
+  value.setHours(0, 0, 0, 0);
+  return value.toISOString().split("T")[0];
+}
+
+function formatWeekLabel(weekStart: string) {
+  const start = new Date(`${weekStart}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const formatter = new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "short",
+  });
+
+  return `${formatter.format(start)} — ${formatter.format(end)}`;
 }
 
 function isMissingControllerTableError(message: string) {
@@ -35,28 +56,33 @@ export function useControllerPlan(
   role: AppRole
 ) {
   const [tasks, setTasks] = useState<ControllerTask[]>([]);
+  const [weeks, setWeeks] = useState<ControllerWeekOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string>(getWeekStartDate());
   const [planId, setPlanId] = useState<string | null>(null);
 
-  const weekStart = useMemo(() => getWeekStartDate(), []);
+  const currentWeekStart = useMemo(() => getWeekStartDate(), []);
 
   useEffect(() => {
-    const loadPlan = async () => {
+    setSelectedWeekStart(currentWeekStart);
+  }, [clientId, currentWeekStart]);
+
+  useEffect(() => {
+    const loadPlans = async () => {
       setLoading(true);
 
       let planQuery = supabase
         .from("controller_plans")
-        .select("id, specialist_id")
+        .select("id, specialist_id, week_start")
         .eq("client_id", clientId)
-        .eq("week_start", weekStart)
-        .order("created_at", { ascending: false });
+        .order("week_start", { ascending: false });
 
       if (role === "smm_specialist") {
         planQuery = planQuery.eq("specialist_id", userId);
       }
 
-      const { data: planRows, error: planError } = await planQuery.limit(1);
+      const { data: planRows, error: planError } = await planQuery;
 
       if (planError) {
         const message = getReadableAuthError(planError);
@@ -64,6 +90,7 @@ export function useControllerPlan(
         if (isMissingControllerTableError(message)) {
           toast.error("Таблицы плана контроллера ещё не созданы в Supabase.");
           setTasks([]);
+          setWeeks([]);
           setPlanId(null);
           setLoading(false);
           return;
@@ -71,26 +98,28 @@ export function useControllerPlan(
 
         toast.error(message);
         setTasks([]);
+        setWeeks([]);
         setPlanId(null);
         setLoading(false);
         return;
       }
 
-      const existingPlan = planRows?.[0];
+      const plans = planRows ?? [];
 
-      if (!existingPlan) {
+      if (plans.length === 0) {
+        setWeeks([]);
         setTasks([]);
         setPlanId(null);
         setLoading(false);
         return;
       }
 
-      setPlanId(existingPlan.id);
+      const planIds = plans.map((plan) => plan.id);
 
       let taskQuery = supabase
         .from("controller_plan_tasks")
-        .select("id, title, done")
-        .eq("plan_id", existingPlan.id)
+        .select("id, title, done, plan_id")
+        .in("plan_id", planIds)
         .order("created_at", { ascending: true });
 
       if (role === "smm_specialist") {
@@ -105,40 +134,76 @@ export function useControllerPlan(
         if (isMissingControllerTableError(message)) {
           toast.error("Таблицы задач контроллера ещё не созданы в Supabase.");
           setTasks([]);
+          setWeeks([]);
+          setPlanId(null);
           setLoading(false);
           return;
         }
 
         toast.error(message);
         setTasks([]);
+        setWeeks([]);
+        setPlanId(null);
         setLoading(false);
         return;
       }
 
-      setTasks(
-        (taskRows ?? []).map((task) => ({
+      const groupedTasks = new Map<string, ControllerTask[]>();
+
+      (taskRows ?? []).forEach((task) => {
+        const current = groupedTasks.get(task.plan_id) ?? [];
+        current.push({
           id: task.id,
           title: task.title,
           done: task.done,
-        }))
-      );
+        });
+        groupedTasks.set(task.plan_id, current);
+      });
+
+      const nextWeeks = plans.map((plan) => {
+        const planTasks = groupedTasks.get(plan.id) ?? [];
+        const doneCount = planTasks.filter((task) => task.done).length;
+
+        return {
+          planId: plan.id,
+          weekStart: plan.week_start,
+          label: formatWeekLabel(plan.week_start),
+          taskCount: planTasks.length,
+          doneCount,
+        };
+      });
+
+      setWeeks(nextWeeks);
+
+      const existingSelected =
+        plans.find((plan) => plan.week_start === selectedWeekStart) ??
+        plans.find((plan) => plan.week_start === currentWeekStart) ??
+        plans[0];
+
+      setSelectedWeekStart(existingSelected.week_start);
+      setPlanId(existingSelected.id);
+      setTasks(groupedTasks.get(existingSelected.id) ?? []);
       setLoading(false);
     };
 
-    void loadPlan();
-  }, [clientId, role, userId, weekStart]);
+    void loadPlans();
+  }, [clientId, role, userId, currentWeekStart, selectedWeekStart]);
 
   const ensurePlan = async () => {
-    if (planId) return planId;
+    const existingWeek = weeks.find((week) => week.weekStart === selectedWeekStart);
+    if (existingWeek) {
+      setPlanId(existingWeek.planId);
+      return existingWeek.planId;
+    }
 
     const { data, error } = await supabase
       .from("controller_plans")
       .insert({
         client_id: clientId,
         specialist_id: userId,
-        week_start: weekStart,
+        week_start: selectedWeekStart,
       })
-      .select("id")
+      .select("id, week_start")
       .single();
 
     if (error) {
@@ -153,6 +218,15 @@ export function useControllerPlan(
       return null;
     }
 
+    const newWeek = {
+      planId: data.id,
+      weekStart: data.week_start,
+      label: formatWeekLabel(data.week_start),
+      taskCount: 0,
+      doneCount: 0,
+    };
+
+    setWeeks((prev) => [newWeek, ...prev].sort((a, b) => b.weekStart.localeCompare(a.weekStart)));
     setPlanId(data.id);
     return data.id;
   };
@@ -203,18 +277,38 @@ export function useControllerPlan(
         done: data.done,
       },
     ]);
+
+    setWeeks((prev) =>
+      prev.map((week) =>
+        week.planId === currentPlanId
+          ? { ...week, taskCount: week.taskCount + 1 }
+          : week
+      )
+    );
+
     toast.success("Задача добавлена");
   };
 
   const toggleTask = async (taskId: string) => {
     const current = tasks.find((task) => task.id === taskId);
-    if (!current) return;
+    if (!current || !planId) return;
 
     const nextDone = !current.done;
 
     setTasks((prev) =>
       prev.map((task) =>
         task.id === taskId ? { ...task, done: nextDone } : task
+      )
+    );
+
+    setWeeks((prev) =>
+      prev.map((week) =>
+        week.planId === planId
+          ? {
+              ...week,
+              doneCount: week.doneCount + (nextDone ? 1 : -1),
+            }
+          : week
       )
     );
 
@@ -230,6 +324,17 @@ export function useControllerPlan(
         )
       );
 
+      setWeeks((prev) =>
+        prev.map((week) =>
+          week.planId === planId
+            ? {
+                ...week,
+                doneCount: week.doneCount + (current.done ? 1 : -1),
+              }
+            : week
+        )
+      );
+
       const message = getReadableAuthError(error);
 
       if (isMissingControllerTableError(message)) {
@@ -241,11 +346,63 @@ export function useControllerPlan(
     }
   };
 
+  const selectWeek = (weekStart: string) => {
+    const selectedWeek = weeks.find((week) => week.weekStart === weekStart);
+    setSelectedWeekStart(weekStart);
+    setPlanId(selectedWeek?.planId ?? null);
+
+    if (!selectedWeek) {
+      setTasks([]);
+      return;
+    }
+
+    let taskQuery = supabase
+      .from("controller_plan_tasks")
+      .select("id, title, done")
+      .eq("plan_id", selectedWeek.planId)
+      .order("created_at", { ascending: true });
+
+    if (role === "smm_specialist") {
+      taskQuery = taskQuery.eq("specialist_id", userId);
+    }
+
+    void taskQuery.then(({ data, error }) => {
+      if (error) {
+        toast.error(getReadableAuthError(error));
+        return;
+      }
+
+      setTasks(
+        (data ?? []).map((task) => ({
+          id: task.id,
+          title: task.title,
+          done: task.done,
+        }))
+      );
+    });
+  };
+
+  const createWeek = async (weekStart: string) => {
+    setSelectedWeekStart(weekStart);
+    const createdPlanId = await ensurePlan();
+
+    if (!createdPlanId) return;
+
+    setPlanId(createdPlanId);
+    setTasks([]);
+    toast.success("Неделя создана");
+  };
+
   return {
     tasks,
+    weeks,
     loading,
     saving,
+    selectedWeekStart,
+    currentWeekStart,
     addTask,
     toggleTask,
+    selectWeek,
+    createWeek,
   };
 }

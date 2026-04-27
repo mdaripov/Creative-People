@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   CheckCircle2,
+  ChevronRight,
   Circle,
   ClipboardCheck,
   Eye,
@@ -24,6 +25,12 @@ function formatNumber(n: number): string {
   return String(n);
 }
 
+function getNextWeekStart(currentWeekStart: string) {
+  const value = new Date(`${currentWeekStart}T00:00:00`);
+  value.setDate(value.getDate() + 7);
+  return value.toISOString().split("T")[0];
+}
+
 interface ControllerTabProps {
   data: ClientData;
   userId: string;
@@ -34,14 +41,23 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
   const [newTask, setNewTask] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [reviewReady, setReviewReady] = useState(false);
-  const { tasks, loading, saving, addTask, toggleTask } = useControllerPlan(
-    data.client.id,
-    userId,
-    role
-  );
+  const {
+    tasks,
+    weeks,
+    loading,
+    saving,
+    selectedWeekStart,
+    currentWeekStart,
+    addTask,
+    toggleTask,
+    selectWeek,
+    createWeek,
+  } = useControllerPlan(data.client.id, userId, role);
 
   const doneCount = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+  const nextWeekStart = getNextWeekStart(selectedWeekStart);
+  const isCurrentWeek = selectedWeekStart === currentWeekStart;
 
   const reviewSummary = useMemo(() => {
     const postsDone = data.linkedInStats.published;
@@ -102,7 +118,7 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
               </div>
               <h3 className="text-lg font-semibold text-white">Что нужно сделать по клиенту</h3>
               <p className="mt-1 max-w-2xl text-sm text-[#8B93A7]">
-                Специалист сам ведёт недельный план, отмечает выполненные пункты, а готовые задачи автоматически зачеркиваются и сохраняются в Supabase.
+                Теперь здесь можно хранить и смотреть планы по всем неделям, переключаясь между текущей и прошлыми.
               </p>
             </div>
 
@@ -124,29 +140,93 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
             </div>
           </div>
 
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-            <div className="flex-1">
-              <input
-                value={newTask}
-                onChange={(event) => setNewTask(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleAddTask();
-                  }
-                }}
-                placeholder="Добавить новый пункт плана..."
-                className="h-12 w-full rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white placeholder:text-[#6B7280] outline-none"
-              />
+          <div className="mb-5 rounded-3xl border border-[#222222] bg-[#121212] p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">История недель</p>
+                <p className="mt-1 text-xs text-[#8B93A7]">
+                  Выберите сохранённую неделю или создайте новую.
+                </p>
+              </div>
+
+              <button
+                onClick={() => void createWeek(nextWeekStart)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 px-3 py-2 text-xs font-medium text-[#A78BFA] transition-colors hover:bg-[#A78BFA]/20"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Новая неделя
+              </button>
             </div>
-            <button
-              onClick={() => void handleAddTask()}
-              disabled={saving}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 text-sm font-medium text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20 disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Добавить задачу
-            </button>
+
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {weeks.length > 0 ? (
+                weeks.map((week) => {
+                  const selected = week.weekStart === selectedWeekStart;
+
+                  return (
+                    <button
+                      key={week.planId}
+                      onClick={() => selectWeek(week.weekStart)}
+                      className="min-w-[220px] rounded-3xl border p-4 text-left transition-all duration-200"
+                      style={{
+                        background: selected ? "rgba(56,189,248,0.10)" : "#101010",
+                        borderColor: selected ? "rgba(56,189,248,0.30)" : "#2A2A2A",
+                      }}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-white">{week.label}</span>
+                        {week.weekStart === currentWeekStart && (
+                          <span className="rounded-full border border-[#34D399]/30 bg-[#34D399]/10 px-2 py-0.5 text-[10px] font-medium text-[#34D399]">
+                            Текущая
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#8B93A7]">
+                        Выполнено {week.doneCount} из {week.taskCount}
+                      </p>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#101010] px-4 py-5 text-sm text-[#8B93A7]">
+                  Пока нет сохранённых недель. Создайте первую неделю и добавьте задачи.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">
+                {isCurrentWeek ? "Текущая неделя" : "Выбранная неделя"}
+              </p>
+              <p className="mt-1 text-xs text-[#8B93A7]">{selectedWeekStart}</p>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:justify-end">
+              <div className="sm:max-w-md sm:flex-1">
+                <input
+                  value={newTask}
+                  onChange={(event) => setNewTask(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleAddTask();
+                    }
+                  }}
+                  placeholder="Добавить новый пункт плана..."
+                  className="h-12 w-full rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white placeholder:text-[#6B7280] outline-none"
+                />
+              </div>
+              <button
+                onClick={() => void handleAddTask()}
+                disabled={saving}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 text-sm font-medium text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20 disabled:opacity-60"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Добавить задачу
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -170,20 +250,19 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
                 <div className="min-w-0 flex-1">
                   <p
                     className={`text-sm transition-all duration-200 ${
-                      task.done
-                        ? "text-[#6B7280] line-through"
-                        : "text-white"
+                      task.done ? "text-[#6B7280] line-through" : "text-white"
                     }`}
                   >
                     {task.title}
                   </p>
                 </div>
+                <ChevronRight className="mt-0.5 h-4 w-4 text-[#4B5563]" />
               </button>
             ))}
 
             {!loading && tasks.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#121212] p-6 text-center text-sm text-[#8B93A7]">
-                Пока нет задач. Добавьте первый пункт недельного плана — он сохранится в базе.
+                Для этой недели пока нет задач. Добавьте первый пункт — он сохранится отдельно именно за эту неделю.
               </div>
             ) : null}
           </div>
@@ -198,7 +277,7 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
               </div>
               <h3 className="text-lg font-semibold text-white">Недельная сверка по аккаунту клиента</h3>
               <p className="mt-1 max-w-2xl text-sm text-[#8B93A7]">
-                Нижний блок проверяет, что реально сделано по клиенту за неделю, и сравнивает это с планом специалиста.
+                Этот блок сверяет выбранную неделю и помогает быстро понять, закрыт ли недельный план.
               </p>
             </div>
 
@@ -335,7 +414,7 @@ export function ControllerTab({ data, userId, role }: ControllerTabProps) {
                     Следующий шаг
                   </p>
                   <p className="mt-2 text-sm text-[#D1D5DB]">
-                    Повторить сильный формат и проверить, закрывает ли специалист недельный план полностью.
+                    Повторить сильный формат и проверить выполнение плана по выбранной неделе.
                   </p>
                 </div>
               </div>
