@@ -472,6 +472,73 @@ function MetaCard({
   );
 }
 
+function LocalReportPreview({ report, index }: { report: ReportRecord; index: number }) {
+  const competitors = getItemsArray(report.competitors);
+  const trends = getItemsArray(report.trends);
+  const scenarios = parseScenarioInsights(report.scenarios);
+
+  return (
+    <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-medium text-[#A78BFA]">
+            <Sparkles className="h-3.5 w-3.5" />
+            Локальный отчёт #{index + 1}
+          </div>
+          <h4 className="text-base font-semibold text-white">
+            {report.client_name || report.client_id || `Report ${index + 1}`}
+          </h4>
+        </div>
+
+        {report.generated_at ? (
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-[#222222] bg-[#111111] px-4 py-2 text-xs text-[#8B93A7]">
+            <Calendar className="h-3.5 w-3.5" />
+            {new Date(report.generated_at).toLocaleString("ru-RU")}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetaCard label="Report ID" value={report.id} icon={<Database className="h-3.5 w-3.5" />} />
+        <MetaCard label="Client ID" value={report.client_id ?? ""} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
+        <MetaCard label="Client Name" value={report.client_name ?? ""} icon={<FileText className="h-3.5 w-3.5" />} />
+        <MetaCard label="Status" value={report.status ?? ""} icon={<Tag className="h-3.5 w-3.5" />} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <ReportColumn title="Тренды" icon={<Flame className="h-4 w-4" />} accent="#A78BFA" items={trends} />
+        <ReportColumn title="Конкуренты" icon={<Target className="h-4 w-4" />} accent="#38BDF8" items={competitors} />
+      </div>
+
+      <div className="mt-4 rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
+            <Lightbulb className="h-5 w-5" />
+          </div>
+          <div>
+            <h5 className="text-base font-semibold text-white">Аналитика сценариев</h5>
+            <p className="text-sm text-[#8B93A7]">Данные из локального JSON-файла.</p>
+          </div>
+        </div>
+
+        {scenarios.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {scenarios.map((scenario, scenarioIndex) => (
+              <ScenarioAnalyticsCard
+                key={`${report.id}-${scenario.title}-${scenarioIndex}`}
+                scenario={scenario}
+                index={scenarioIndex}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#6B7280]">В scenarios нет распознанной аналитики.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [allReportsCount, setAllReportsCount] = useState(0);
@@ -538,15 +605,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const latestReport = reports[0] ?? null;
-  const localLatestReport = localReports[0] ?? null;
   const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
   const reportCompetitors = useMemo(() => getItemsArray(latestReport?.competitors), [latestReport]);
   const scenarioAnalytics = useMemo(() => parseScenarioInsights(latestReport?.scenarios), [latestReport]);
-
-  const localScenarioAnalytics = useMemo(
-    () => parseScenarioInsights(localLatestReport?.scenarios),
-    [localLatestReport]
-  );
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
@@ -652,7 +713,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             </div>
             <p className="text-sm text-[#FED7AA]">
               Сейчас клиентский запрос к таблице <span className="font-semibold">reports</span> возвращает 0 строк.
-              Это обычно означает ограничение доступа на стороне Supabase, а не проблему интерфейса.
+              Поэтому ниже показаны все локальные отчёты из приложенного файла.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetaCard label="name" value={data.client.name} icon={<FileText className="h-3.5 w-3.5" />} />
@@ -662,36 +723,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             </div>
           </div>
 
-          {localLatestReport ? (
-            <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
-              <div className="mb-5">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-medium text-[#A78BFA]">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Локальный пример из приложенного файла
-                </div>
-                <h4 className="text-base font-semibold text-white">Структура данных читается нормально</h4>
-                <p className="mt-1 text-sm text-[#8B93A7]">
-                  Ниже показан пример из вашего JSON-файла. Это подтверждает, что проблема именно в доступе к таблице из браузера.
-                </p>
-              </div>
-
-              {localScenarioAnalytics.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  {localScenarioAnalytics.map((scenario, index) => (
-                    <ScenarioAnalyticsCard
-                      key={`${scenario.title}-${index}`}
-                      scenario={scenario}
-                      index={index}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
-                  <p className="text-sm text-[#6B7280]">Даже локальный пример не содержит распознанной аналитики.</p>
-                </div>
-              )}
-            </div>
-          ) : null}
+          {localReports.map((report, index) => (
+            <LocalReportPreview key={report.id} report={report} index={index} />
+          ))}
         </div>
       )}
     </div>
