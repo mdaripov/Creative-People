@@ -1,85 +1,107 @@
 "use client";
 
-import { Palette, Linkedin, BarChart3, Users } from "lucide-react";
+import { Briefcase, Sparkles, UserCircle2 } from "lucide-react";
 
-const agents = [
+type MainView = "mentor" | "clients" | "cabinet";
+
+interface EmptyStateProps {
+  onSelectView: (view: MainView) => void;
+}
+
+const items = [
   {
-    icon: Palette,
-    color: "#A78BFA",
-    bg: "rgba(167, 139, 250, 0.1)",
-    border: "rgba(167, 139, 250, 0.2)",
-    title: "Креативный директор",
-    description: "Анализирует тренды, генерирует идеи для съёмок и создаёт полный препродакшен-пакет для вашего контента.",
-  },
-  {
-    icon: Linkedin,
+    id: "clients" as const,
+    title: "Клиенты",
+    description: "Откройте список всех клиентов и начните работу по нужному проекту.",
+    icon: Briefcase,
     color: "#38BDF8",
-    bg: "rgba(56, 189, 248, 0.1)",
-    border: "rgba(56, 189, 248, 0.2)",
-    title: "LinkedIn-менеджер",
-    description: "Адаптирует контент для LinkedIn, управляет очередью публикаций и отслеживает вовлечённость аудитории.",
+    bg: "rgba(56, 189, 248, 0.10)",
+    border: "rgba(56, 189, 248, 0.24)",
   },
   {
-    icon: BarChart3,
+    id: "mentor" as const,
+    title: "ИИ СММ наставник",
+    description: "Перейдите в чат с наставником для идей, стратегии и рекомендаций.",
+    icon: Sparkles,
+    color: "#A78BFA",
+    bg: "rgba(167, 139, 250, 0.10)",
+    border: "rgba(167, 139, 250, 0.24)",
+  },
+  {
+    id: "cabinet" as const,
+    title: "Личный кабинет",
+    description: "Посмотрите закреплённых клиентов и своё персональное рабочее пространство.",
+    icon: UserCircle2,
     color: "#34D399",
-    bg: "rgba(52, 211, 153, 0.1)",
-    border: "rgba(52, 211, 153, 0.2)",
-    title: "Контролёр и аналитик",
-    description: "Отслеживает выполнение плана, формирует отчёты для руководства и клиентов с визуализацией роста.",
+    bg: "rgba(52, 211, 153, 0.10)",
+    border: "rgba(52, 211, 153, 0.24)",
   },
 ];
 
-export function EmptyState() {
+export function EmptyState({ onSelectView }: EmptyStateProps) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-fade-in">
-      {/* Icon */}
-      <div className="mb-6 relative">
-        <div className="w-20 h-20 rounded-2xl bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center">
-          <Users className="w-9 h-9 text-[#3A3A3A]" />
-        </div>
-        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#34D399] flex items-center justify-center">
-          <span className="text-[8px] font-bold text-black">AI</span>
-        </div>
-      </div>
-
-      {/* Text */}
-      <h2 className="text-xl font-semibold text-white mb-2">
-        Выберите клиента
-      </h2>
-      <p className="text-sm text-[#6B7280] text-center max-w-sm mb-10">
-        Выберите клиента из боковой панели, чтобы открыть его рабочее пространство с тремя AI-агентами
-      </p>
-
-      {/* Agent cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl">
-        {agents.map((agent, i) => {
-          const Icon = agent.icon;
-          return (
-            <div
-              key={agent.title}
-              className="rounded-2xl p-5 border animate-fade-in-up"
-              style={{
-                background: agent.bg,
-                borderColor: agent.border,
-                animationDelay: `${i * 0.1}s`,
-                opacity: 0,
-              }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: agent.bg, border: `1px solid ${agent.border}` }}
-              >
-                <Icon className="w-5 h-5" style={{ color: agent.color }} />
-              </div>
-              <h3 className="text-sm font-semibold text-white mb-1.5">
-                {agent.title}
-              </h3>
-              <p className="text-xs text-[#6B7280] leading-relaxed">
-                {agent.description}
-              </p>
+    <div className="flex h-full items-center justify-center p-4 sm:p-6 animate-fade-in">
+      <div className="w-full max-w-6xl">
+        <div className="rounded-[32px] border border-[#1E1E1E] bg-[#131313] p-6 sm:p-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="mb-3 inline-flex items-center rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-4 py-1.5 text-[11px] font-medium text-[#C4B5FD]">
+              AI SMM Workspace
             </div>
-          );
-        })}
+            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Единая система для управления клиентами, наставником и личным кабинетом
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-[#8B93A7] sm:text-base">
+              Выберите нужный раздел, чтобы перейти к клиентам, открыть ИИ СММ наставника
+              или зайти в личный кабинет специалиста.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {items.map((item, index) => {
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelectView(item.id)}
+                  className="group rounded-[28px] border p-6 text-left transition-all duration-200 hover:-translate-y-1 hover:bg-[#171717] animate-fade-in-up"
+                  style={{
+                    background: "#151515",
+                    borderColor: item.border,
+                    animationDelay: `${index * 0.08}s`,
+                    opacity: 0,
+                  }}
+                >
+                  <div
+                    className="mb-5 flex h-14 w-14 items-center justify-center rounded-3xl border"
+                    style={{
+                      background: item.bg,
+                      borderColor: item.border,
+                    }}
+                  >
+                    <Icon className="h-6 w-6" style={{ color: item.color }} />
+                  </div>
+
+                  <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#8B93A7]">
+                    {item.description}
+                  </p>
+
+                  <div
+                    className="mt-5 inline-flex rounded-full px-3 py-1 text-xs font-medium"
+                    style={{
+                      background: item.bg,
+                      color: item.color,
+                      border: `1px solid ${item.border}`,
+                    }}
+                  >
+                    Открыть раздел
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

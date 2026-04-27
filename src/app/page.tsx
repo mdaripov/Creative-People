@@ -118,7 +118,7 @@ export default function Home() {
               ? "Личный кабинет"
               : selectedData
               ? selectedData.client.name
-              : selectedClientName ?? "SMM Agency"}
+              : "Главный дашборд"}
           </span>
         </div>
 
@@ -141,7 +141,7 @@ export default function Home() {
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} />
           ) : (
-            <EmptyState />
+            <EmptyState onSelectView={setMainView} />
           )}
         </div>
       </main>
