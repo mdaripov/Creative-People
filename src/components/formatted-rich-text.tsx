@@ -47,8 +47,6 @@ type RichTextBlock =
   | OrderedListBlock
   | SectionBlock;
 
-const URL_REGEX = /(https?:\/\/[^\s<]+)/g;
-
 function cleanUrlToken(token: string) {
   let url = token;
   let trailing = "";
@@ -85,16 +83,15 @@ function renderInlineFormatting(text: string, keyPrefix: string, accent: string)
             href={url}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 align-middle text-[12px] font-medium transition-all duration-200 hover:brightness-110 hover:underline break-all"
-            style={{
-              color: accent,
-              background: `${accent}14`,
-              borderColor: `${accent}30`,
-            }}
+            className="inline text-sm underline decoration-1 underline-offset-4 break-all hover:opacity-80"
+            style={{ color: accent }}
           >
-            <ExternalLink className="h-3 w-3 flex-shrink-0" />
-            <span className="break-all">{url}</span>
+            {url}
           </a>
+          <ExternalLink
+            className="ml-1 inline h-3 w-3 align-text-top"
+            style={{ color: accent }}
+          />
           {trailing ? <span>{trailing}</span> : null}
         </span>
       );
