@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { FormattedRichText } from "@/components/formatted-rich-text";
 import reportsRows from "@/lib/reports_rows.json";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -409,14 +410,16 @@ function InsightList({
       {items.map((item, index) => (
         <div
           key={`${item}-${index}`}
-          className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4"
+          className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4 sm:p-4"
         >
           <div className="flex items-start gap-3">
             <div
               className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
               style={{ backgroundColor: accent }}
             />
-            <p className="text-sm leading-7 text-[#F3F4F6]">{item}</p>
+            <div className="min-w-0 flex-1">
+              <FormattedRichText text={item} accent={accent} />
+            </div>
           </div>
         </div>
       ))}
@@ -448,9 +451,9 @@ function ScenarioCard({
       </div>
 
       {scenario.summary ? (
-        <p className="mb-4 text-sm leading-7 text-[#E5E7EB]">
-          {scenario.summary}
-        </p>
+        <div className="mb-4 rounded-2xl border border-[#242424] bg-[#171717] p-4">
+          <FormattedRichText text={scenario.summary} accent="#34D399" />
+        </div>
       ) : null}
 
       {scenario.bullets.length > 0 ? (
@@ -458,10 +461,9 @@ function ScenarioCard({
           {scenario.bullets.map((bullet, bulletIndex) => (
             <div
               key={`${scenario.title}-${bulletIndex}`}
-              className="flex items-start gap-2.5 rounded-2xl border border-[#242424] bg-[#181818] px-3 py-3"
+              className="rounded-2xl border border-[#242424] bg-[#181818] px-3 py-3"
             >
-              <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#34D399]" />
-              <p className="text-sm leading-7 text-[#F3F4F6]">{bullet}</p>
+              <FormattedRichText text={bullet} accent="#34D399" compact />
             </div>
           ))}
         </div>
