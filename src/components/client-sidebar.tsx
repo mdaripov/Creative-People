@@ -20,6 +20,7 @@ interface ClientSidebarProps {
   onSelectClient: (id: string, name?: string) => void;
   assignedClientIds: string[];
   onToggleAssignClient: (id: string) => void;
+  onClientsLoaded?: (clients: Array<{ id: string; name: string }>) => void;
 }
 
 type SupabaseClient = {
@@ -80,6 +81,7 @@ export function ClientSidebar({
   onSelectClient,
   assignedClientIds,
   onToggleAssignClient,
+  onClientsLoaded,
 }: ClientSidebarProps) {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<ClientListItem[]>([]);
@@ -100,6 +102,7 @@ export function ClientSidebar({
       if (error) {
         setClients([]);
         setRawCount(0);
+        onClientsLoaded?.([]);
         setFetchError(error.message);
         toast.error("Не удалось загрузить клиентов");
         setIsLoading(false);
@@ -118,11 +121,12 @@ export function ClientSidebar({
       }));
 
       setClients(mappedClients);
+      onClientsLoaded?.(rows.map((client: SupabaseClient) => ({ id: client.id, name: client.name })));
       setIsLoading(false);
     };
 
     fetchClients();
-  }, []);
+  }, [onClientsLoaded]);
 
   const filtered = useMemo(
     () =>

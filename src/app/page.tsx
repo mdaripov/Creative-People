@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientsOverview } from "@/components/clients-overview";
@@ -19,6 +19,7 @@ export default function Home() {
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("home");
+  const [supabaseClients, setSupabaseClients] = useState<Array<{ id: string; name: string }>>([]);
   const { assignedClientIds, toggleClient } = useSpecialistClients();
 
   useEffect(() => {
@@ -45,10 +46,11 @@ export default function Home() {
   }, [selectedClientId, selectedClientName]);
 
   const allClients = useMemo(() => {
-    return Object.values(allClientsData).map((item) => ({
-      id: item.client.id,
-      name: item.client.name,
-    }));
+    return supabaseClients;
+  }, [supabaseClients]);
+
+  const handleClientsLoaded = useCallback((clients: Array<{ id: string; name: string }>) => {
+    setSupabaseClients(clients);
   }, []);
 
   const handleSelectClient = (id: string, name?: string) => {
@@ -103,6 +105,7 @@ export default function Home() {
               onSelectClient={handleSelectClient}
               assignedClientIds={assignedClientIds}
               onToggleAssignClient={toggleClient}
+              onClientsLoaded={handleClientsLoaded}
             />
           </div>
         </div>
