@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, CopyMinus, Lightbulb, Telescope } from "lucide-react";
+import { Compass, CopyMinus, ExternalLink, Lightbulb, Telescope } from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedCompetitorItem, ViewMode } from "@/lib/trendwatcher";
 
@@ -9,7 +9,13 @@ interface CompetitorCardProps {
   viewMode: ViewMode;
 }
 
+function isUrl(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
+
 export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
+  const sourceIsUrl = isUrl(item.source);
+
   return (
     <div className="rounded-3xl border border-[#2A2A2A] bg-[#121212] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)] sm:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -23,7 +29,19 @@ export function CompetitorCard({ item, viewMode }: CompetitorCardProps) {
             </span>
           </div>
           <h4 className="text-base font-semibold text-white">{item.name}</h4>
-          <p className="mt-1 text-sm text-[#8EA0BE] break-words">{item.source}</p>
+          {sourceIsUrl ? (
+            <a
+              href={item.source}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-2 inline-flex items-center gap-1.5 break-all text-sm text-[#7DD3FC] underline decoration-1 underline-offset-4 hover:opacity-80"
+            >
+              <span>{item.source}</span>
+              <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+            </a>
+          ) : (
+            <p className="mt-1 text-sm text-[#8EA0BE] break-words">{item.source}</p>
+          )}
         </div>
       </div>
 
