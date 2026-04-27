@@ -55,7 +55,7 @@ export function PersonalCabinet({
             </button>
           </div>
         </div>
-        <ReportsTab clients={allClients} />
+        <ReportsTab clients={assignedClients} />
       </div>
     );
   }
