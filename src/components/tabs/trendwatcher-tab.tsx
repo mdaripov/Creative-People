@@ -12,6 +12,7 @@ import {
   Database,
   Tag,
   UserCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClientData } from "@/lib/mock-data";
@@ -26,6 +27,10 @@ type ReportRecord = {
   trends: unknown;
   scenarios: unknown;
 };
+
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
 
 function getItemsArray(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -85,8 +90,8 @@ function getItemsArray(value: unknown): string[] {
             return String(nested);
           })
         : typeof item === "string"
-        ? [item]
-        : []
+          ? [item]
+          : []
     );
   }
 
@@ -126,7 +131,7 @@ function ReportColumn({
 }) {
   return (
     <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="mb-4 flex items-center gap-2">
         <div
           className="flex h-9 w-9 items-center justify-center rounded-2xl border"
           style={{ background: `${accent}15`, borderColor: `${accent}25`, color: accent }}
@@ -141,7 +146,7 @@ function ReportColumn({
           {items.map((item, index) => (
             <div
               key={`${title}-${index}`}
-              className="rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3 text-sm leading-relaxed text-[#D1D5DB] whitespace-pre-wrap"
+              className="whitespace-pre-wrap rounded-2xl border border-[#1B1B1B] bg-[#161616] px-3 py-3 text-sm leading-relaxed text-[#D1D5DB]"
             >
               {item}
             </div>
@@ -165,41 +170,67 @@ function MetaCard({
 }) {
   return (
     <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
-      <div className="flex items-center gap-2 mb-2 text-[#8B93A7] text-xs">
+      <div className="mb-2 flex items-center gap-2 text-xs text-[#8B93A7]">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="text-sm text-white break-all">{value || "—"}</p>
+      <p className="break-all text-sm text-white">{value || "—"}</p>
     </div>
   );
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [allReportsCount, setAllReportsCount] = useState(0);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchReports = async () => {
       setIsLoadingReports(true);
+      setErrorMessage(null);
 
-      const { data: reportsData } = await supabase
+      const { data: reportsData, error } = await supabase
         .from("reports")
         .select("id, client_id, client_name, generated_at, status, competitors, trends, scenarios")
         .order("generated_at", { ascending: false });
 
-      const normalizedName = data.client.name.trim().toLowerCase();
-      const matchedReports = ((reportsData as ReportRecord[] | null) ?? []).filter((report) => {
-        const reportClientId = (report.client_id ?? "").trim().toLowerCase();
-        const reportClientName = (report.client_name ?? "").trim().toLowerCase();
-        return reportClientId === normalizedName || reportClientName === normalizedName;
+      if (!isMounted) return;
+
+      if (error) {
+        setReports([]);
+        setAllReportsCount(0);
+        setErrorMessage(error.message);
+        setIsLoadingReports(false);
+        return;
+      }
+
+      const allReports = (reportsData as ReportRecord[] | null) ?? [];
+      setAllReportsCount(allReports.length);
+
+      const normalizedName = normalizeValue(data.client.name);
+      const normalizedId = normalizeValue(data.client.id);
+
+      const matchedReports = allReports.filter((report) => {
+        const reportClientId = normalizeValue(report.client_id);
+        const reportClientName = normalizeValue(report.client_name);
+
+        return (
+          reportClientId === normalizedName ||
+          reportClientName === normalizedName ||
+          reportClientId === normalizedId ||
+          reportClientName === normalizedId ||
+          reportClientId.includes(normalizedName) ||
+          reportClientName.includes(normalizedName) ||
+          normalizedName.includes(reportClientId) ||
+          normalizedName.includes(reportClientName)
+        );
       });
 
-      if (isMounted) {
-        setReports(matchedReports);
-        setIsLoadingReports(false);
-      }
+      setReports(matchedReports);
+      setIsLoadingReports(false);
     };
 
     fetchReports();
@@ -207,7 +238,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     return () => {
       isMounted = false;
     };
-  }, [data.client.name]);
+  }, [data.client.id, data.client.name]);
 
   const latestReport = reports[0] ?? null;
   const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
@@ -215,7 +246,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const reportScenarios = useMemo(() => getItemsArray(latestReport?.scenarios), [latestReport]);
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
+    <div className="animate-fade-in space-y-5 p-4 sm:p-6">
       <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -241,62 +272,61 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       {isLoadingReports ? (
         <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] py-16">
           <div className="flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-[#6B7280] animate-spin" />
+            <Loader2 className="h-6 w-6 animate-spin text-[#6B7280]" />
+          </div>
+        </div>
+      ) : errorMessage ? (
+        <div className="rounded-3xl border border-[#7F1D1D] bg-[#2A1212] p-5">
+          <div className="mb-2 flex items-center gap-2 text-[#FCA5A5]">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-sm font-semibold">Ошибка загрузки reports</p>
+          </div>
+          <p className="text-sm text-[#FECACA]">{errorMessage}</p>
+          <div className="mt-4 rounded-2xl border border-[#4A1D1D] bg-[#1B0F0F] p-4 text-left">
+            <p className="mb-1 text-xs text-[#FCA5A5]">Текущий клиент</p>
+            <p className="break-all text-sm text-white">name: {data.client.name}</p>
+            <p className="break-all text-sm text-white">id: {data.client.id}</p>
           </div>
         </div>
       ) : latestReport ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetaCard label="Report ID" value={latestReport.id} icon={<Database className="h-3.5 w-3.5" />} />
             <MetaCard label="Client ID" value={latestReport.client_id ?? ""} icon={<UserCircle2 className="h-3.5 w-3.5" />} />
             <MetaCard label="Client Name" value={latestReport.client_name ?? ""} icon={<FileText className="h-3.5 w-3.5" />} />
             <MetaCard label="Status" value={latestReport.status ?? ""} icon={<Tag className="h-3.5 w-3.5" />} />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <ReportColumn
-              title="Тренды"
-              icon={<Flame className="h-4 w-4" />}
-              accent="#A78BFA"
-              items={reportTrends}
-            />
-            <ReportColumn
-              title="Конкуренты"
-              icon={<Target className="h-4 w-4" />}
-              accent="#38BDF8"
-              items={reportCompetitors}
-            />
-            <ReportColumn
-              title="Сценарии"
-              icon={<Lightbulb className="h-4 w-4" />}
-              accent="#34D399"
-              items={reportScenarios}
-            />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <ReportColumn title="Тренды" icon={<Flame className="h-4 w-4" />} accent="#A78BFA" items={reportTrends} />
+            <ReportColumn title="Конкуренты" icon={<Target className="h-4 w-4" />} accent="#38BDF8" items={reportCompetitors} />
+            <ReportColumn title="Сценарии" icon={<Lightbulb className="h-4 w-4" />} accent="#34D399" items={reportScenarios} />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
-              <h4 className="text-sm font-semibold text-white mb-3">Raw trends</h4>
-              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.trends)}</pre>
+              <h4 className="mb-3 text-sm font-semibold text-white">Raw trends</h4>
+              <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-[#9CA3AF]">{getPrettyJson(latestReport.trends)}</pre>
             </div>
             <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
-              <h4 className="text-sm font-semibold text-white mb-3">Raw competitors</h4>
-              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.competitors)}</pre>
+              <h4 className="mb-3 text-sm font-semibold text-white">Raw competitors</h4>
+              <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-[#9CA3AF]">{getPrettyJson(latestReport.competitors)}</pre>
             </div>
             <div className="rounded-3xl border border-[#1E1E1E] bg-[#111111] p-4">
-              <h4 className="text-sm font-semibold text-white mb-3">Raw scenarios</h4>
-              <pre className="text-xs text-[#9CA3AF] whitespace-pre-wrap break-words leading-relaxed">{getPrettyJson(latestReport.scenarios)}</pre>
+              <h4 className="mb-3 text-sm font-semibold text-white">Raw scenarios</h4>
+              <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-[#9CA3AF]">{getPrettyJson(latestReport.scenarios)}</pre>
             </div>
           </div>
         </>
       ) : (
-        <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center space-y-3">
-          <ClipboardList className="w-8 h-8 text-[#2A2A2A] mx-auto" />
+        <div className="space-y-3 rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center">
+          <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
           <p className="text-sm text-[#6B7280]">Для этого клиента в таблице reports пока нет записей</p>
-          <div className="rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left max-w-xl mx-auto">
-            <p className="text-xs text-[#8B93A7] mb-1">Текущий клиент</p>
-            <p className="text-sm text-white break-all">name: {data.client.name}</p>
-            <p className="text-sm text-white break-all">id: {data.client.id}</p>
+          <div className="mx-auto max-w-xl rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left">
+            <p className="mb-1 text-xs text-[#8B93A7]">Диагностика</p>
+            <p className="break-all text-sm text-white">name: {data.client.name}</p>
+            <p className="break-all text-sm text-white">id: {data.client.id}</p>
+            <p className="break-all text-sm text-white">reports visible in browser: {allReportsCount}</p>
           </div>
         </div>
       )}
