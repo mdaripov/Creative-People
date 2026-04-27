@@ -65,7 +65,7 @@ function openExternalLink(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
+function renderLinkedText(text: string, keyPrefix: string, accent: string, bold = false) {
   const nodes: React.ReactNode[] = [];
   const linkRegex = /https?:\/\/[^\s<]+/g;
   let lastIndex = 0;
@@ -77,11 +77,14 @@ function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
     const end = start + rawUrl.length;
 
     if (start > lastIndex) {
-      nodes.push(
-        <React.Fragment key={`${keyPrefix}-text-${matchIndex}`}>
-          {renderBoldText(text.slice(lastIndex, start), `${keyPrefix}-bold-${matchIndex}`)}
-        </React.Fragment>
-      );
+      const plainText = text.slice(lastIndex, start);
+      if (plainText) {
+        nodes.push(
+          <React.Fragment key={`${keyPrefix}-text-${matchIndex}`}>
+            {bold ? <strong className="font-semibold text-white">{plainText}</strong> : plainText}
+          </React.Fragment>
+        );
+      }
     }
 
     const { url, trailing } = cleanUrlToken(rawUrl);
@@ -98,14 +101,16 @@ function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
         className="inline-flex items-center gap-1 break-all text-left underline decoration-1 underline-offset-4 hover:opacity-80"
         style={{ color: accent }}
       >
-        <span>{url}</span>
+        <span className={bold ? "font-semibold" : undefined}>{url}</span>
         <ExternalLink className="h-3 w-3 flex-shrink-0" />
       </button>
     );
 
     if (trailing) {
       nodes.push(
-        <span key={`${keyPrefix}-trail-${matchIndex}`}>{trailing}</span>
+        <React.Fragment key={`${keyPrefix}-trail-${matchIndex}`}>
+          {bold ? <strong className="font-semibold text-white">{trailing}</strong> : trailing}
+        </React.Fragment>
       );
     }
 
@@ -114,21 +119,22 @@ function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
   }
 
   if (lastIndex < text.length) {
+    const plainText = text.slice(lastIndex);
     nodes.push(
       <React.Fragment key={`${keyPrefix}-text-final`}>
-        {renderBoldText(text.slice(lastIndex), `${keyPrefix}-bold-final`)}
+        {bold ? <strong className="font-semibold text-white">{plainText}</strong> : plainText}
       </React.Fragment>
     );
   }
 
   if (nodes.length === 0) {
-    return renderBoldText(text, `${keyPrefix}-bold-only`);
+    return bold ? <strong className="font-semibold text-white">{text}</strong> : text;
   }
 
   return nodes;
 }
 
-function renderBoldText(text: string, keyPrefix: string) {
+function renderBoldText(text: string, keyPrefix: string, accent: string) {
   const parts = text.split(/(\*\*.*?\*\*)/g).filter(Boolean);
 
   return parts.map((part, index) => {
@@ -136,18 +142,22 @@ function renderBoldText(text: string, keyPrefix: string) {
 
     if (isBold) {
       return (
-        <strong key={`${keyPrefix}-${index}`} className="font-semibold text-white">
-          {part.slice(2, -2)}
-        </strong>
+        <React.Fragment key={`${keyPrefix}-${index}`}>
+          {renderLinkedText(part.slice(2, -2), `${keyPrefix}-bold-${index}`, accent, true)}
+        </React.Fragment>
       );
     }
 
-    return <React.Fragment key={`${keyPrefix}-${index}`}>{part}</React.Fragment>;
+    return (
+      <React.Fragment key={`${keyPrefix}-${index}`}>
+        {renderLinkedText(part, `${keyPrefix}-plain-${index}`, accent, false)}
+      </React.Fragment>
+    );
   });
 }
 
 function renderInlineFormatting(text: string, keyPrefix: string, accent: string) {
-  return renderTextWithLinks(text, keyPrefix, accent);
+  return renderBoldText(text, keyPrefix, accent);
 }
 
 function isHeadingLine(line: string) {
