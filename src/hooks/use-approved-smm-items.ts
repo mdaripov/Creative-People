@@ -65,10 +65,36 @@ export function useApprovedSmmItems(clientId: string) {
     });
   };
 
+  const updateItem = (itemId: string, text: string) => {
+    setItems((prev) => {
+      const next = prev.map((item) =>
+        item.clientId === clientId && item.id === itemId
+          ? { ...item, text }
+          : item
+      );
+
+      writeItems(next);
+      return next;
+    });
+  };
+
+  const removeItem = (itemId: string) => {
+    setItems((prev) => {
+      const next = prev.filter(
+        (item) => !(item.clientId === clientId && item.id === itemId)
+      );
+
+      writeItems(next);
+      return next;
+    });
+  };
+
   return {
     approvedItems: clientItems,
     isApproved: (itemId: string) =>
       clientItems.some((item) => item.id === itemId),
     approveItem,
+    updateItem,
+    removeItem,
   };
 }
