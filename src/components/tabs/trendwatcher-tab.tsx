@@ -307,6 +307,29 @@ function getPrettyJson(value: unknown): string {
   return String(value ?? "");
 }
 
+function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
+  const reportClientId = normalizeValue(report.client_id);
+  const reportClientName = normalizeValue(report.client_name);
+  const normalizedName = normalizeValue(clientName);
+  const normalizedId = normalizeValue(clientId);
+
+  if (!reportClientId && !reportClientName) return 0;
+
+  const values = [reportClientId, reportClientName].filter(Boolean);
+
+  if (values.includes(normalizedId) || values.includes(normalizedName)) return 100;
+
+  if (values.some((value) => value.includes(normalizedId) || normalizedId.includes(value))) return 80;
+  if (values.some((value) => value.includes(normalizedName) || normalizedName.includes(value))) return 70;
+
+  const nameWords = normalizedName.split(/\s+/).filter(Boolean);
+  const matchedWords = nameWords.filter((word) => values.some((value) => value.includes(word)));
+
+  if (matchedWords.length > 0) return 40 + matchedWords.length;
+
+  return 0;
+}
+
 function ReportColumn({
   title,
   icon,
@@ -439,24 +462,14 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const allReports = (reportsData as ReportRecord[] | null) ?? [];
       setAllReportsCount(allReports.length);
 
-      const normalizedName = normalizeValue(data.client.name);
-      const normalizedId = normalizeValue(data.client.id);
-
-      const matchedReports = allReports.filter((report) => {
-        const reportClientId = normalizeValue(report.client_id);
-        const reportClientName = normalizeValue(report.client_name);
-
-        return (
-          reportClientId === normalizedName ||
-          reportClientName === normalizedName ||
-          reportClientId === normalizedId ||
-          reportClientName === normalizedId ||
-          reportClientId.includes(normalizedName) ||
-          reportClientName.includes(normalizedName) ||
-          normalizedName.includes(reportClientId) ||
-          normalizedName.includes(reportClientName)
-        );
-      });
+      const matchedReports = allReports
+        .map((report) => ({
+          report,
+          score: getMatchScore(report, data.client.name, data.client.id),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.report);
 
       setReports(matchedReports);
       setIsLoadingReports(false);
@@ -571,7 +584,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       ) : (
         <div className="space-y-3 rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center">
           <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
-          <p className="text-sm text-[#6B7280]">Для этого клиента в таблице reports пока нет записей</p>
+          <p className="text-sm text-[#6B7280]">Для этого клиента в таблице reports пока не найдена подходящая запись</p>
           <div className="mx-auto max-w-xl rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left">
             <p className="mb-1 text-xs text-[#8B93A7]">Диагностика</p>
             <p className="break-all text-sm text-white">name: {data.client.name}</p>
