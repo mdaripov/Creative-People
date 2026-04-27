@@ -85,6 +85,13 @@ function getItemsArray(value: unknown): string[] {
       .filter(Boolean);
   }
 
+  if (typeof value === "string") {
+    return value
+      .split(/\n+|•|\-|\*/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
   if (value && typeof value === "object") {
     return Object.values(value as Record<string, unknown>).flatMap((item) =>
       Array.isArray(item)
@@ -99,6 +106,7 @@ function getItemsArray(value: unknown): string[] {
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
+
   const [filter, setFilter] = useState("Все");
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
