@@ -1,11 +1,65 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { LockKeyhole, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+type SignupRole = "smm_specialist" | "manager";
+
+const roleLabels: Record<SignupRole, string> = {
+  smm_specialist: "SMM специалист",
+  manager: "Руководитель",
+};
+
+const roleDescriptions: Record<SignupRole, string> = {
+  smm_specialist: "Доступ только к своему кабинету и закреплённым клиентам.",
+  manager: "Доступ ко всем кабинетам команды и общему контролю.",
+};
+
 export function LoginScreen() {
+  const [signupRole, setSignupRole] = useState<SignupRole>("smm_specialist");
+
+  const appearance = useMemo(
+    () => ({
+      theme: ThemeSupa,
+      variables: {
+        default: {
+          colors: {
+            brand: "#A78BFA",
+            brandAccent: "#8B5CF6",
+            defaultButtonBackground: "#1A1A1A",
+            defaultButtonBackgroundHover: "#202020",
+            defaultButtonBorder: "#2A2A2A",
+            defaultButtonText: "#FFFFFF",
+            inputBackground: "#101010",
+            inputBorder: "#262626",
+            inputBorderHover: "#3A3A3A",
+            inputBorderFocus: "#A78BFA",
+            inputText: "#FFFFFF",
+            inputLabelText: "#C9D1E1",
+            inputPlaceholder: "#6B7280",
+            messageText: "#F9FAFB",
+            messageTextDanger: "#FCA5A5",
+            anchorTextColor: "#7DD3FC",
+            anchorTextHoverColor: "#BAE6FD",
+          },
+          radii: {
+            borderRadiusButton: "16px",
+            buttonBorderRadius: "16px",
+            inputBorderRadius: "16px",
+          },
+          space: {
+            buttonPadding: "12px 14px",
+            inputPadding: "12px 14px",
+          },
+        },
+      },
+    }),
+    []
+  );
+
   return (
     <div className="flex min-h-screen bg-[#0F0F0F]">
       <div className="hidden w-full max-w-[46%] flex-col justify-between border-r border-[#1E1E1E] bg-[#121212] p-10 lg:flex">
@@ -37,9 +91,9 @@ export function LoginScreen() {
             <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
               <LockKeyhole className="h-5 w-5" />
             </div>
-            <h3 className="text-sm font-semibold text-white">Персональное сохранение</h3>
+            <h3 className="text-sm font-semibold text-white">Самостоятельная регистрация</h3>
             <p className="mt-2 text-sm text-[#8B93A7]">
-              Все действия в личном кабинете будут сохраняться за авторизованным специалистом.
+              При регистрации можно сразу выбрать роль и создать аккаунт как SMM-специалист или руководитель.
             </p>
           </div>
         </div>
@@ -58,45 +112,53 @@ export function LoginScreen() {
             </p>
           </div>
 
+          <div className="mb-5 rounded-3xl border border-[#1E1E1E] bg-[#121212] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <UserCog className="h-4 w-4 text-[#A78BFA]" />
+              <p className="text-sm font-semibold text-white">Роль при регистрации</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(["smm_specialist", "manager"] as SignupRole[]).map((role) => {
+                const active = signupRole === role;
+                const Icon = role === "manager" ? Users : ShieldCheck;
+
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setSignupRole(role)}
+                    className="rounded-2xl border p-3 text-left transition-all duration-200"
+                    style={{
+                      background: active ? "rgba(167,139,250,0.10)" : "#101010",
+                      borderColor: active ? "rgba(167,139,250,0.28)" : "#262626",
+                    }}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Icon
+                        className="h-4 w-4"
+                        style={{ color: active ? "#A78BFA" : "#8B93A7" }}
+                      />
+                      <p className="text-sm font-medium text-white">{roleLabels[role]}</p>
+                    </div>
+                    <p className="text-xs leading-relaxed text-[#8B93A7]">
+                      {roleDescriptions[role]}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 text-xs text-[#8B93A7]">
+              Эта роль применяется при создании нового аккаунта.
+            </p>
+          </div>
+
           <Auth
             supabaseClient={supabase}
             providers={[]}
             theme="dark"
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: "#A78BFA",
-                    brandAccent: "#8B5CF6",
-                    defaultButtonBackground: "#1A1A1A",
-                    defaultButtonBackgroundHover: "#202020",
-                    defaultButtonBorder: "#2A2A2A",
-                    defaultButtonText: "#FFFFFF",
-                    inputBackground: "#101010",
-                    inputBorder: "#262626",
-                    inputBorderHover: "#3A3A3A",
-                    inputBorderFocus: "#A78BFA",
-                    inputText: "#FFFFFF",
-                    inputLabelText: "#C9D1E1",
-                    inputPlaceholder: "#6B7280",
-                    messageText: "#F9FAFB",
-                    messageTextDanger: "#FCA5A5",
-                    anchorTextColor: "#7DD3FC",
-                    anchorTextHoverColor: "#BAE6FD",
-                  },
-                  radii: {
-                    borderRadiusButton: "16px",
-                    buttonBorderRadius: "16px",
-                    inputBorderRadius: "16px",
-                  },
-                  space: {
-                    buttonPadding: "12px 14px",
-                    inputPadding: "12px 14px",
-                  },
-                },
-              },
-            }}
+            appearance={appearance}
             localization={{
               variables: {
                 sign_in: {
@@ -126,6 +188,10 @@ export function LoginScreen() {
                   link_text: "Забыли пароль?",
                 },
               },
+            }}
+            view="sign_in"
+            additionalData={{
+              role: signupRole,
             }}
           />
         </div>
