@@ -30,6 +30,32 @@ async function loadProfile(userId: string) {
   return data;
 }
 
+function buildFallbackProfile(session: Session): UserProfile {
+  const firstName =
+    typeof session.user.user_metadata?.first_name === "string"
+      ? session.user.user_metadata.first_name
+      : null;
+  const lastName =
+    typeof session.user.user_metadata?.last_name === "string"
+      ? session.user.user_metadata.last_name
+      : null;
+  const avatarUrl =
+    typeof session.user.user_metadata?.avatar_url === "string"
+      ? session.user.user_metadata.avatar_url
+      : null;
+  const role =
+    session.user.user_metadata?.role === "manager" ? "manager" : "smm_specialist";
+
+  return {
+    id: session.user.id,
+    first_name: firstName,
+    last_name: lastName,
+    avatar_url: avatarUrl,
+    role,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -56,11 +82,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         if (!active) return;
 
-        setProfile(nextProfile);
+        setProfile(nextProfile ?? buildFallbackProfile(nextSession));
       } catch (error) {
         if (!active) return;
 
-        setProfile(null);
+        setProfile(buildFallbackProfile(nextSession));
         toast.error(getReadableAuthError(error));
       } finally {
         if (active) {
