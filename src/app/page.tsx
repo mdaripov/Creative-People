@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Menu } from "lucide-react";
 import { ClientSidebar } from "@/components/client-sidebar";
+import { ClientsOverview } from "@/components/clients-overview";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
@@ -9,15 +11,14 @@ import { MentorChatView } from "@/components/mentor-chat-view";
 import { PersonalCabinet } from "@/components/personal-cabinet";
 import { allClientsData, createClientData } from "@/lib/mock-data";
 import { useSpecialistClients } from "@/hooks/use-specialist-clients";
-import { Menu } from "lucide-react";
 
-type MainView = "mentor" | "clients" | "cabinet";
+type MainView = "home" | "mentor" | "clients" | "cabinet";
 
 export default function Home() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [mainView, setMainView] = useState<MainView>("clients");
+  const [mainView, setMainView] = useState<MainView>("home");
   const { assignedClientIds, toggleClient } = useSpecialistClients();
 
   useEffect(() => {
@@ -44,12 +45,10 @@ export default function Home() {
   }, [selectedClientId, selectedClientName]);
 
   const allClients = useMemo(() => {
-    const demoClients = Object.values(allClientsData).map((item) => ({
+    return Object.values(allClientsData).map((item) => ({
       id: item.client.id,
       name: item.client.name,
     }));
-
-    return demoClients;
   }, []);
 
   const handleSelectClient = (id: string, name?: string) => {
@@ -60,16 +59,22 @@ export default function Home() {
   };
 
   const handleOpenMentor = () => {
+    setSelectedClientId(null);
+    setSelectedClientName(null);
     setMainView("mentor");
     setSidebarOpen(false);
   };
 
   const handleOpenClients = () => {
+    setSelectedClientId(null);
+    setSelectedClientName(null);
     setMainView("clients");
     setSidebarOpen(false);
   };
 
   const handleOpenCabinet = () => {
+    setSelectedClientId(null);
+    setSelectedClientName(null);
     setMainView("cabinet");
     setSidebarOpen(false);
   };
@@ -78,7 +83,7 @@ export default function Home() {
     <div className="flex h-screen bg-[#0F0F0F] overflow-hidden">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
+          className="fixed inset-0 z-20 bg-black/60 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -91,7 +96,7 @@ export default function Home() {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        <div className="flex h-full flex-col bg-[#111111] border-r border-[#1E1E1E]">
+        <div className="flex h-full flex-col border-r border-[#1E1E1E] bg-[#111111]">
           <div className="min-h-0 flex-1">
             <ClientSidebar
               selectedClientId={mainView === "clients" ? selectedClientId : null}
@@ -103,34 +108,38 @@ export default function Home() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1A1A1A] lg:hidden flex-shrink-0">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex flex-shrink-0 items-center gap-3 border-b border-[#1A1A1A] px-4 py-3 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-8 h-8 rounded-lg bg-[#161616] border border-[#1E1E1E] flex items-center justify-center text-[#9CA3AF] hover:text-white transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#1E1E1E] bg-[#161616] text-[#9CA3AF] transition-colors hover:text-white"
           >
-            <Menu className="w-4 h-4" />
+            <Menu className="h-4 w-4" />
           </button>
           <span className="text-sm font-semibold text-white">
             {mainView === "mentor"
               ? "ИИ СММ наставник"
               : mainView === "cabinet"
               ? "Личный кабинет"
-              : selectedData
+              : mainView === "clients" && selectedData
               ? selectedData.client.name
+              : mainView === "clients"
+              ? "Все клиенты"
               : "Главный дашборд"}
           </span>
         </div>
 
         <DashboardNav
-          mainView={mainView}
+          mainView={mainView === "home" ? "clients" : mainView}
           onClientsClick={handleOpenClients}
           onMentorClick={handleOpenMentor}
           onCabinetClick={handleOpenCabinet}
         />
 
         <div className="flex-1 overflow-hidden">
-          {mainView === "mentor" ? (
+          {mainView === "home" ? (
+            <EmptyState onSelectView={(view) => setMainView(view)} />
+          ) : mainView === "mentor" ? (
             <MentorChatView />
           ) : mainView === "cabinet" ? (
             <PersonalCabinet
@@ -141,7 +150,7 @@ export default function Home() {
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} />
           ) : (
-            <EmptyState onSelectView={setMainView} />
+            <ClientsOverview clients={allClients} onOpenClient={handleSelectClient} />
           )}
         </div>
       </main>
