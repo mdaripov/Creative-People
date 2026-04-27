@@ -179,7 +179,7 @@ export function ReportsTab({ clients }: ReportsTabProps) {
           <div className="rounded-[24px] border border-[#1E1E1E] bg-[#151515] p-4">
             <div className="mb-3 flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-[#34D399]" />
-              <p className="text-sm font-semibold text-white">Дата для суммы</p>
+              <p className="text-sm font-semibold text-white">Дата отчёта</p>
             </div>
             <Input
               type="date"
