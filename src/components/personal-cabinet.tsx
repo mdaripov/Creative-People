@@ -1,7 +1,15 @@
 "use client";
 
-import { Briefcase, CheckCircle2, Sparkles, UserCircle2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Briefcase,
+  CheckCircle2,
+  FileSpreadsheet,
+  Sparkles,
+  UserCircle2,
+} from "lucide-react";
 import { createClientData } from "@/lib/mock-data";
+import { ReportsTab } from "@/components/cabinet/reports-tab";
 
 interface PersonalCabinetProps {
   assignedClientIds: string[];
@@ -9,18 +17,69 @@ interface PersonalCabinetProps {
   onOpenClient: (id: string, name?: string) => void;
 }
 
+type CabinetTab = "overview" | "reports";
+
 export function PersonalCabinet({
   assignedClientIds,
   allClients,
   onOpenClient,
 }: PersonalCabinetProps) {
-  const assignedClients = assignedClientIds
-    .map((id) => allClients.find((client) => client.id === id))
-    .filter((client): client is { id: string; name: string } => Boolean(client));
+  const [activeTab, setActiveTab] = useState<CabinetTab>("overview");
+
+  const assignedClients = useMemo(
+    () =>
+      assignedClientIds
+        .map((id) => allClients.find((client) => client.id === id))
+        .filter((client): client is { id: string; name: string } => Boolean(client)),
+    [assignedClientIds, allClients]
+  );
+
+  if (activeTab === "reports") {
+    return (
+      <div className="h-full overflow-hidden bg-[#0F0F0F] animate-fade-in">
+        <div className="border-b border-[#1A1A1A] px-4 py-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+            >
+              <UserCircle2 className="h-3.5 w-3.5" />
+              Обзор
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-2.5 text-xs font-semibold text-[#38BDF8]"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Отчёты
+            </button>
+          </div>
+        </div>
+        <ReportsTab clients={allClients} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto bg-[#0F0F0F] p-4 sm:p-6 animate-fade-in">
       <div className="mx-auto max-w-6xl space-y-5">
+        <div className="flex gap-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 py-2.5 text-xs font-semibold text-[#34D399]"
+          >
+            <UserCircle2 className="h-3.5 w-3.5" />
+            Обзор
+          </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Отчёты
+          </button>
+        </div>
+
         <div className="rounded-[28px] border border-[#1E1E1E] bg-[#131313] p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
