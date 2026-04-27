@@ -60,6 +60,11 @@ function cleanUrlToken(token: string) {
   return { url, trailing };
 }
 
+function openExternalLink(url: string) {
+  if (typeof window === "undefined") return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
   const nodes: React.ReactNode[] = [];
   const linkRegex = /https?:\/\/[^\s<]+/g;
@@ -82,17 +87,20 @@ function renderTextWithLinks(text: string, keyPrefix: string, accent: string) {
     const { url, trailing } = cleanUrlToken(rawUrl);
 
     nodes.push(
-      <a
+      <button
         key={`${keyPrefix}-link-${matchIndex}`}
-        href={url}
-        target="_blank"
-        rel="noreferrer noopener"
-        className="inline-flex items-center gap-1 break-all underline decoration-1 underline-offset-4 hover:opacity-80"
+        type="button"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openExternalLink(url);
+        }}
+        className="inline-flex items-center gap-1 break-all text-left underline decoration-1 underline-offset-4 hover:opacity-80"
         style={{ color: accent }}
       >
         <span>{url}</span>
         <ExternalLink className="h-3 w-3 flex-shrink-0" />
-      </a>
+      </button>
     );
 
     if (trailing) {
