@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bot, Send, User, Paperclip, Mic, Star } from "lucide-react";
 import { ChatMessageContent } from "@/components/chat-message-content";
 import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
+import type { AppRole } from "@/lib/auth";
 import type { ClientData } from "@/lib/mock-data";
 
 interface Message {
@@ -21,10 +22,18 @@ const starterPrompts = [
 
 const WEBHOOK_URL = "https://n8n19643.hostkey.in/webhook/client-agent";
 
-export function SmmChatTab({ data }: { data: ClientData }) {
+export function SmmChatTab({
+  data,
+  userId,
+  role,
+}: {
+  data: ClientData;
+  userId: string;
+  role: AppRole;
+}) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { approveItem, isApproved } = useApprovedSmmItems(data.client.id);
+  const { approveItem, isApproved } = useApprovedSmmItems(data.client.id, userId, role);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -36,7 +45,7 @@ export function SmmChatTab({ data }: { data: ClientData }) {
   const approveMessage = (message: Message) => {
     if (message.role !== "agent") return;
 
-    approveItem({
+    void approveItem({
       id: message.id,
       clientId: data.client.id,
       text: message.text,

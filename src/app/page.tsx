@@ -7,8 +7,10 @@ import { ClientsOverview } from "@/components/clients-overview";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
+import { LoginScreen } from "@/components/login-screen";
 import { MentorChatView } from "@/components/mentor-chat-view";
 import { PersonalCabinet } from "@/components/personal-cabinet";
+import { useSession } from "@/components/session-provider";
 import { allClientsData, createClientData } from "@/lib/mock-data";
 import { useSpecialistClients } from "@/hooks/use-specialist-clients";
 
@@ -20,7 +22,11 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("home");
   const [supabaseClients, setSupabaseClients] = useState<Array<{ id: string; name: string }>>([]);
-  const { assignedClientIds, toggleClient } = useSpecialistClients();
+  const { session, profile, loading, signOut } = useSession();
+  const { assignedClientIds, toggleClient } = useSpecialistClients(
+    session?.user.id ?? null,
+    profile?.role ?? null
+  );
 
   useEffect(() => {
     if (!selectedClientId && !selectedClientName) return;
@@ -81,6 +87,18 @@ export default function Home() {
     setSidebarOpen(false);
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0F0F0F]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#2A2A2A] border-t-[#A78BFA]" />
+      </div>
+    );
+  }
+
+  if (!session || !profile) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="flex h-screen bg-[#0F0F0F] overflow-hidden">
       {sidebarOpen && (
@@ -139,6 +157,9 @@ export default function Home() {
           onClientsClick={handleOpenClients}
           onMentorClick={handleOpenMentor}
           onCabinetClick={handleOpenCabinet}
+          onSignOut={() => {
+            void signOut();
+          }}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -151,9 +172,12 @@ export default function Home() {
               assignedClientIds={assignedClientIds}
               allClients={allClients}
               onOpenClient={handleSelectClient}
+              userId={session.user.id}
+              profile={profile}
+              role={profile.role}
             />
           ) : selectedData ? (
-            <ClientWorkspace data={selectedData} />
+            <ClientWorkspace data={selectedData} userId={session.user.id} role={profile.role} />
           ) : (
             <ClientsOverview clients={allClients} onOpenClient={handleSelectClient} />
           )}

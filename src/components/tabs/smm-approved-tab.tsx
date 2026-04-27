@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
+import type { AppRole } from "@/lib/auth";
 import type { ClientData } from "@/lib/mock-data";
 
 interface ApprovedAnswerCardProps {
@@ -108,8 +109,16 @@ function ApprovedAnswerCard({
   );
 }
 
-export function SmmApprovedTab({ data }: { data: ClientData }) {
-  const { approvedItems, updateItem, removeItem } = useApprovedSmmItems(data.client.id);
+export function SmmApprovedTab({
+  data,
+  userId,
+  role,
+}: {
+  data: ClientData;
+  userId: string;
+  role: AppRole;
+}) {
+  const { approvedItems, updateItem, removeItem } = useApprovedSmmItems(data.client.id, userId, role);
   const approvedPosts = data.contentPosts.filter((item) => item.approved);
   const approvedVideoTZ = data.videoTZList.filter((item) => item.approved);
   const approvedEditorTZ = data.editorTZList.filter((item) => item.approved);
@@ -163,8 +172,12 @@ export function SmmApprovedTab({ data }: { data: ClientData }) {
                     id={item.id}
                     text={item.text}
                     createdAt={item.createdAt}
-                    onSave={updateItem}
-                    onDelete={removeItem}
+                    onSave={(id, text) => {
+                      void updateItem(id, text);
+                    }}
+                    onDelete={(id) => {
+                      void removeItem(id);
+                    }}
                   />
                 ))}
 

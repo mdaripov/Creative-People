@@ -10,11 +10,15 @@ import {
 } from "lucide-react";
 import { createClientData } from "@/lib/mock-data";
 import { ReportsTab } from "@/components/cabinet/reports-tab";
+import type { AppRole, UserProfile } from "@/lib/auth";
 
 interface PersonalCabinetProps {
   assignedClientIds: string[];
   allClients: Array<{ id: string; name: string }>;
   onOpenClient: (id: string, name?: string) => void;
+  userId: string;
+  profile: UserProfile;
+  role: AppRole;
 }
 
 type CabinetTab = "overview" | "reports";
@@ -23,16 +27,25 @@ export function PersonalCabinet({
   assignedClientIds,
   allClients,
   onOpenClient,
+  userId,
+  profile,
+  role,
 }: PersonalCabinetProps) {
   const [activeTab, setActiveTab] = useState<CabinetTab>("overview");
 
-  const assignedClients = useMemo(
-    () =>
-      assignedClientIds
-        .map((id) => allClients.find((client) => client.id === id))
-        .filter((client): client is { id: string; name: string } => Boolean(client)),
-    [assignedClientIds, allClients]
-  );
+  const assignedClients = useMemo(() => {
+    if (role === "manager") {
+      return allClients;
+    }
+
+    return assignedClientIds
+      .map((id) => allClients.find((client) => client.id === id))
+      .filter((client): client is { id: string; name: string } => Boolean(client));
+  }, [assignedClientIds, allClients, role]);
+
+  const displayName =
+    [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+    "Пользователь";
 
   if (activeTab === "reports") {
     return (
@@ -55,7 +68,7 @@ export function PersonalCabinet({
             </button>
           </div>
         </div>
-        <ReportsTab clients={assignedClients} />
+        <ReportsTab clients={assignedClients} userId={userId} role={role} />
       </div>
     );
   }
@@ -89,18 +102,20 @@ export function PersonalCabinet({
               <div>
                 <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-medium text-[#34D399]">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Личный кабинет SMM специалиста
+                  {role === "manager" ? "Кабинет руководителя" : "Личный кабинет SMM специалиста"}
                 </div>
-                <h2 className="text-2xl font-semibold text-white">Моё рабочее пространство</h2>
+                <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
                 <p className="mt-1 text-sm text-[#8B93A7]">
-                  Здесь собраны закреплённые за вами клиенты и ваш быстрый доступ к работе.
+                  {role === "manager"
+                    ? "Вы видите все личные кабинеты и отчёты команды."
+                    : "Здесь собраны закреплённые за вами клиенты и ваш быстрый доступ к работе."}
                 </p>
               </div>
             </div>
 
             <div className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-4 py-2 text-sm font-medium text-[#38BDF8]">
               <Briefcase className="h-4 w-4" />
-              Клиентов в кабинете: {assignedClients.length}
+              {role === "manager" ? "Всего клиентов" : "Клиентов в кабинете"}: {assignedClients.length}
             </div>
           </div>
         </div>
@@ -109,7 +124,9 @@ export function PersonalCabinet({
           <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-5">
             <div className="mb-4 flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-[#38BDF8]" />
-              <h3 className="text-sm font-semibold text-white">Мои клиенты</h3>
+              <h3 className="text-sm font-semibold text-white">
+                {role === "manager" ? "Все кабинеты клиентов" : "Мои клиенты"}
+              </h3>
             </div>
 
             {assignedClients.length === 0 ? (
@@ -162,24 +179,26 @@ export function PersonalCabinet({
           <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-5">
             <div className="mb-4 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
-              <h3 className="text-sm font-semibold text-white">Профиль специалиста</h3>
+              <h3 className="text-sm font-semibold text-white">Профиль пользователя</h3>
             </div>
 
             <div className="space-y-3">
               <div className="rounded-3xl border border-[#222222] bg-[#121212] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Роль</p>
-                <p className="mt-2 text-sm font-medium text-white">SMM Specialist</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Имя</p>
+                <p className="mt-2 text-sm font-medium text-white">{displayName}</p>
               </div>
 
               <div className="rounded-3xl border border-[#222222] bg-[#121212] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Основной фокус</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Роль</p>
                 <p className="mt-2 text-sm text-[#D1D5DB]">
-                  Управление контентом, координация клиентов и работа с ИИ-наставником.
+                  {role === "manager" ? "Руководитель" : "SMM Specialist"}
                 </p>
               </div>
 
               <div className="rounded-3xl border border-[#222222] bg-[#121212] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Закреплено клиентов</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
+                  {role === "manager" ? "Доступно кабинетов" : "Закреплено клиентов"}
+                </p>
                 <p className="mt-2 text-2xl font-semibold text-white">{assignedClients.length}</p>
               </div>
             </div>

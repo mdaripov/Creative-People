@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Sparkles, UserCircle2 } from "lucide-react";
+import { Briefcase, LogOut, Sparkles, UserCircle2 } from "lucide-react";
 
 type MainView = "mentor" | "clients" | "cabinet";
 
@@ -9,6 +9,7 @@ interface DashboardNavProps {
   onClientsClick: () => void;
   onMentorClick: () => void;
   onCabinetClick: () => void;
+  onSignOut: () => void;
 }
 
 const items = [
@@ -40,6 +41,7 @@ export function DashboardNav({
   onClientsClick,
   onMentorClick,
   onCabinetClick,
+  onSignOut,
 }: DashboardNavProps) {
   const handleClick = (id: MainView) => {
     if (id === "clients") onClientsClick();
@@ -49,7 +51,7 @@ export function DashboardNav({
 
   return (
     <div className="border-b border-[#1A1A1A] px-3 py-3 sm:px-4">
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex items-center gap-2 overflow-x-auto">
         {items.map((item) => {
           const Icon = item.icon;
           const active = mainView === item.id;
@@ -84,6 +86,14 @@ export function DashboardNav({
             </button>
           );
         })}
+
+        <button
+          onClick={onSignOut}
+          className="ml-auto inline-flex min-w-fit items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-3 text-sm font-semibold text-[#C9D1E1] transition-all duration-200 hover:bg-[#1A1A1A] hover:text-white"
+        >
+          <LogOut className="h-4 w-4" />
+          Выйти
+        </button>
       </div>
     </div>
   );

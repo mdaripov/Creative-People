@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Clock3,
   Filter,
+  Loader2,
   Plus,
   ReceiptText,
   Trash2,
@@ -12,6 +13,8 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import type { AppRole } from "@/lib/auth";
 
 interface ReportEntry {
   id: string;
@@ -25,6 +28,8 @@ interface ReportEntry {
 
 interface ReportsTabProps {
   clients: Array<{ id: string; name: string }>;
+  userId: string;
+  role: AppRole;
 }
 
 function formatDateForInput(date: Date) {
@@ -73,31 +78,50 @@ function addDurations(values: string[]) {
   return `${hours}:${minutes}`;
 }
 
-const initialEntries: ReportEntry[] = [
-  {
-    id: "report-1",
-    date: formatDateForInput(new Date()),
-    client: "Anise",
-    task: "Монтаж Reels и создание субтитров",
-    startTime: "09:00",
-    endTime: "10:20",
-    notes: "Финальная версия для Instagram",
-  },
-  {
-    id: "report-2",
-    date: formatDateForInput(new Date()),
-    client: "Apex",
-    task: "Генерация изображений через AI",
-    startTime: "11:00",
-    endTime: "12:10",
-    notes: "Подготовлены 4 варианта визуалов",
-  },
-];
-
-export function ReportsTab({ clients }: ReportsTabProps) {
-  const [entries, setEntries] = useState<ReportEntry[]>(initialEntries);
+export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
+  const [entries, setEntries] = useState<ReportEntry[]>([]);
   const [selectedClient, setSelectedClient] = useState("all");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadReports = async () => {
+      setIsLoading(true);
+
+      let query = supabase
+        .from("work_reports")
+        .select("id, date, client_name, task, start_time, end_time, notes")
+        .order("date", { ascending: false })
+        .order("start_time", { ascending: false });
+
+      if (role === "smm_specialist") {
+        query = query.eq("specialist_id", userId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast.error("Не удалось загрузить отчёты");
+        setIsLoading(false);
+        return;
+      }
+
+      setEntries(
+        (data ?? []).map((entry) => ({
+          id: entry.id,
+          date: entry.date,
+          client: entry.client_name,
+          task: entry.task,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          notes: entry.notes,
+        }))
+      );
+      setIsLoading(false);
+    };
+
+    void loadReports();
+  }, [userId, role]);
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
@@ -114,28 +138,82 @@ export function ReportsTab({ clients }: ReportsTabProps) {
     return addDurations(durations);
   }, [entries, selectedDate]);
 
-  const updateEntry = (id: string, key: keyof ReportEntry, value: string) => {
+  const updateEntry = async (id: string, key: keyof ReportEntry, value: string) => {
     setEntries((prev) =>
       prev.map((entry) => (entry.id === id ? { ...entry, [key]: value } : entry))
     );
+
+    const target = entries.find((entry) => entry.id === id);
+    if (!target) return;
+
+    const nextEntry = { ...target, [key]: value };
+
+    const { error } = await supabase
+      .from("work_reports")
+      .update({
+        date: nextEntry.date,
+        client_name: nextEntry.client,
+        task: nextEntry.task,
+        start_time: nextEntry.startTime,
+        end_time: nextEntry.endTime,
+        notes: nextEntry.notes,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Не удалось сохранить изменения");
+      return;
+    }
   };
 
-  const removeEntry = (id: string) => {
+  const removeEntry = async (id: string) => {
+    const { error } = await supabase
+      .from("work_reports")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Не удалось удалить запись");
+      return;
+    }
+
     setEntries((prev) => prev.filter((entry) => entry.id !== id));
     toast.success("Запись удалена");
   };
 
-  const addEntry = () => {
+  const addEntry = async () => {
     const fallbackClient = clients[0]?.name ?? "";
+
+    const payload = {
+      specialist_id: userId,
+      date: selectedDate,
+      client_name: selectedClient !== "all" ? selectedClient : fallbackClient,
+      task: "",
+      start_time: "09:00",
+      end_time: "10:00",
+      notes: "",
+    };
+
+    const { data, error } = await supabase
+      .from("work_reports")
+      .insert(payload)
+      .select("id, date, client_name, task, start_time, end_time, notes")
+      .single();
+
+    if (error) {
+      toast.error("Не удалось добавить запись");
+      return;
+    }
+
     setEntries((prev) => [
       {
-        id: `report-${Date.now()}`,
-        date: selectedDate,
-        client: selectedClient !== "all" ? selectedClient : fallbackClient,
-        task: "",
-        startTime: "09:00",
-        endTime: "10:00",
-        notes: "",
+        id: data.id,
+        date: data.date,
+        client: data.client_name,
+        task: data.task,
+        startTime: data.start_time,
+        endTime: data.end_time,
+        notes: data.notes,
       },
       ...prev,
     ]);
@@ -245,7 +323,15 @@ export function ReportsTab({ clients }: ReportsTabProps) {
                 </tr>
               </thead>
               <tbody>
-                {filteredEntries.map((entry) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#8B93A7]" />
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredEntries.map((entry) => (
                   <tr key={entry.id} className="border-b border-[#1E1E1E] align-top">
                     <td className="px-4 py-3">
                       <Input
@@ -318,7 +404,7 @@ export function ReportsTab({ clients }: ReportsTabProps) {
                   </tr>
                 ))}
 
-                {filteredEntries.length === 0 ? (
+                {!isLoading && filteredEntries.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
                       По выбранному фильтру записей пока нет.

@@ -8,6 +8,7 @@ import { SmmApprovedTab } from "@/components/tabs/smm-approved-tab";
 import { LinkedInTab } from "@/components/tabs/linkedin-tab";
 import { TrendwatcherTab } from "@/components/tabs/trendwatcher-tab";
 import { ControllerTab } from "@/components/tabs/controller-tab";
+import type { AppRole } from "@/lib/auth";
 import type { ClientData } from "@/lib/mock-data";
 
 const tabs = [
@@ -18,7 +19,15 @@ const tabs = [
   { id: "controller", label: "Контроллер", icon: BarChart3, color: "#34D399" },
 ];
 
-export function ClientWorkspace({ data }: { data: ClientData }) {
+export function ClientWorkspace({
+  data,
+  userId,
+  role,
+}: {
+  data: ClientData;
+  userId: string;
+  role: AppRole;
+}) {
   const [activeTab, setActiveTab] = useState("trends");
 
   return (
@@ -52,11 +61,10 @@ export function ClientWorkspace({ data }: { data: ClientData }) {
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === "trends" && <TrendwatcherTab key={`trends-${data.client.id}`} data={data} />}
-        {activeTab === "smm-chat" && <SmmChatTab key={`smm-chat-${data.client.id}`} data={data} />}
-        {activeTab === "smm-approved" && <SmmApprovedTab key={`smm-approved-${data.client.id}`} data={data} />}
+        {activeTab === "smm-chat" && <SmmChatTab key={`smm-chat-${data.client.id}`} data={data} userId={userId} role={role} />}
+        {activeTab === "smm-approved" && <SmmApprovedTab key={`smm-approved-${data.client.id}`} data={data} userId={userId} role={role} />}
         {activeTab === "linkedin" && <LinkedInTab key={`linkedin-${data.client.id}`} data={data} />}
         {activeTab === "controller" && <ControllerTab key={`controller-${data.client.id}`} data={data} />}
-
       </div>
     </div>
   );
