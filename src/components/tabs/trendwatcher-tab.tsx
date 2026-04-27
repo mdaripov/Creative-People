@@ -136,11 +136,17 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const { data: reportsData } = await supabase
         .from("reports")
         .select("id, client_id, client_name, generated_at, status, competitors, trends, scenarios")
-        .or(`client_id.eq.${data.client.id},client_name.eq.${data.client.name}`)
         .order("generated_at", { ascending: false });
 
+      const normalizedName = data.client.name.trim().toLowerCase();
+      const matchedReports = ((reportsData as ReportRecord[] | null) ?? []).filter((report) => {
+        const reportClientId = (report.client_id ?? "").trim().toLowerCase();
+        const reportClientName = (report.client_name ?? "").trim().toLowerCase();
+        return reportClientId === normalizedName || reportClientName === normalizedName;
+      });
+
       if (isMounted) {
-        setReports((reportsData as ReportRecord[] | null) ?? []);
+        setReports(matchedReports);
         setIsLoadingReports(false);
       }
     };
@@ -150,7 +156,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     return () => {
       isMounted = false;
     };
-  }, [data.client.id, data.client.name]);
+  }, [data.client.name]);
 
   const latestReport = reports[0] ?? null;
   const reportTrends = useMemo(() => getItemsArray(latestReport?.trends), [latestReport]);
@@ -209,9 +215,14 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           />
         </div>
       ) : (
-        <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center">
-          <ClipboardList className="w-8 h-8 text-[#2A2A2A] mx-auto mb-3" />
+        <div className="rounded-3xl border border-[#1E1E1E] bg-[#161616] p-10 text-center space-y-3">
+          <ClipboardList className="w-8 h-8 text-[#2A2A2A] mx-auto" />
           <p className="text-sm text-[#6B7280]">Для этого клиента в таблице reports пока нет записей</p>
+          <div className="rounded-2xl border border-[#222222] bg-[#111111] p-4 text-left max-w-xl mx-auto">
+            <p className="text-xs text-[#8B93A7] mb-1">Текущий клиент</p>
+            <p className="text-sm text-white break-all">name: {data.client.name}</p>
+            <p className="text-sm text-white break-all">id: {data.client.id}</p>
+          </div>
         </div>
       )}
     </div>
