@@ -37,29 +37,6 @@ function normalizeValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
-function extractTextFromObject(value: Record<string, unknown>) {
-  return (
-    (typeof value.title === "string" && value.title) ||
-    (typeof value.name === "string" && value.name) ||
-    (typeof value.topic === "string" && value.topic) ||
-    (typeof value.headline === "string" && value.headline) ||
-    (typeof value.label === "string" && value.label) ||
-    ""
-  );
-}
-
-function extractSummaryFromObject(value: Record<string, unknown>) {
-  return (
-    (typeof value.description === "string" && value.description) ||
-    (typeof value.summary === "string" && value.summary) ||
-    (typeof value.analysis === "string" && value.analysis) ||
-    (typeof value.insight === "string" && value.insight) ||
-    (typeof value.scenario === "string" && value.scenario) ||
-    (typeof value.text === "string" && value.text) ||
-    ""
-  );
-}
-
 function unwrapStructuredValue(value: unknown): unknown {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return value;
@@ -78,66 +55,160 @@ function unwrapStructuredValue(value: unknown): unknown {
   return value;
 }
 
+function parseUnknownJson(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return value;
+
+  if (
+    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("\"[") && trimmed.endsWith("]\"")) ||
+    (trimmed.startsWith("\"{") && trimmed.endsWith("}\""))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      try {
+        return JSON.parse(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+  }
+
+  return value;
+}
+
+function prettifyKey(key: string) {
+  const dictionary: Record<string, string> = {
+    name: "Название",
+    title: "Название",
+    topic: "Тема",
+    format: "Формат",
+    platform: "Платформа",
+    description: "Описание",
+    summary: "Кратко",
+    analysis: "Анализ",
+    why_works: "Почему работает",
+    why_viral: "Почему вирусится",
+    source: "Источник",
+    date: "Дата",
+    website: "Сайт",
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    hook: "Хук",
+    script: "Сценарий",
+    cta: "CTA",
+    headline: "Заголовок",
+    label: "Метка",
+    insight: "Инсайт",
+    text: "Текст",
+  };
+
+  if (dictionary[key]) return dictionary[key];
+
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatObjectToRichText(value: Record<string, unknown>) {
+  const priorityOrder = [
+    "name",
+    "title",
+    "topic",
+    "headline",
+    "format",
+    "platform",
+    "description",
+    "summary",
+    "analysis",
+    "why_works",
+    "why_viral",
+    "source",
+    "date",
+    "website",
+    "instagram",
+    "tiktok",
+    "hook",
+    "script",
+    "cta",
+  ];
+
+  const entries = Object.entries(value).filter(([, raw]) => {
+    if (raw === null || raw === undefined) return false;
+    if (typeof raw === "string") return raw.trim().length > 0;
+    if (Array.isArray(raw)) return raw.length > 0;
+    return true;
+  });
+
+  const sortedEntries = entries.sort(([a], [b]) => {
+    const aIndex = priorityOrder.indexOf(a);
+    const bIndex = priorityOrder.indexOf(b);
+
+    const safeA = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+    const safeB = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+
+    return safeA - safeB;
+  });
+
+  return sortedEntries
+    .map(([key, raw]) => {
+      const label = prettifyKey(key);
+
+      if (typeof raw === "string") {
+        return `**${label}:** ${raw}`;
+      }
+
+      if (Array.isArray(raw)) {
+        const items = raw
+          .map((item) =>
+            typeof item === "string"
+              ? `- ${item}`
+              : typeof item === "object" && item
+                ? `- ${formatObjectToRichText(item as Record<string, unknown>).replace(/\n/g, " ")}`
+                : `- ${String(item)}`
+          )
+          .join("\n");
+
+        return `**${label}:**\n${items}`;
+      }
+
+      if (typeof raw === "object" && raw) {
+        return `**${label}:**\n${formatObjectToRichText(raw as Record<string, unknown>)}`;
+      }
+
+      return `**${label}:** ${String(raw)}`;
+    })
+    .join("\n\n");
+}
+
 function getItemsArray(value: unknown): string[] {
   const unwrapped = unwrapStructuredValue(value);
+  const parsed = typeof unwrapped === "string" ? parseUnknownJson(unwrapped) : unwrapped;
 
-  if (Array.isArray(unwrapped)) {
-    return unwrapped
+  if (Array.isArray(parsed)) {
+    return parsed
       .map((item) => {
         if (typeof item === "string") return item;
         if (item && typeof item === "object") {
-          const objectItem = item as Record<string, unknown>;
-          return (
-            extractTextFromObject(objectItem) ||
-            extractSummaryFromObject(objectItem) ||
-            JSON.stringify(item, null, 2)
-          );
+          return formatObjectToRichText(item as Record<string, unknown>);
         }
         return String(item);
       })
       .filter(Boolean);
   }
 
-  if (typeof unwrapped === "string") {
-    const trimmed = unwrapped.trim();
-
-    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
-      try {
-        return getItemsArray(JSON.parse(trimmed));
-      } catch {
-        return trimmed
-          .split(/\n+|•/)
-          .map((item) => item.trim())
-          .filter(Boolean);
-      }
-    }
-
-    return trimmed
-      .split(/\n+|•/)
+  if (typeof parsed === "string") {
+    return parsed
+      .split(/\n{2,}|•/)
       .map((item) => item.trim())
       .filter(Boolean);
   }
 
-  if (unwrapped && typeof unwrapped === "object") {
-    const objectValue = unwrapped as Record<string, unknown>;
-    return Object.values(objectValue).flatMap((item) =>
-      Array.isArray(item)
-        ? item.map((nested) => {
-            if (typeof nested === "string") return nested;
-            if (nested && typeof nested === "object") {
-              const objectItem = nested as Record<string, unknown>;
-              return (
-                extractTextFromObject(objectItem) ||
-                extractSummaryFromObject(objectItem) ||
-                JSON.stringify(nested, null, 2)
-              );
-            }
-            return String(nested);
-          })
-        : typeof item === "string"
-          ? [item]
-          : []
-    );
+  if (parsed && typeof parsed === "object") {
+    return [formatObjectToRichText(parsed as Record<string, unknown>)];
   }
 
   return [];
@@ -145,59 +216,36 @@ function getItemsArray(value: unknown): string[] {
 
 function parseScenarioInsights(value: unknown): ScenarioInsight[] {
   const normalizedValue = unwrapStructuredValue(value);
+  const parsedValue =
+    typeof normalizedValue === "string" ? parseUnknownJson(normalizedValue) : normalizedValue;
 
   const normalizeBulletList = (items: unknown[]): string[] =>
     items
       .map((item) => {
         if (typeof item === "string") return item.trim();
         if (item && typeof item === "object") {
-          const objectItem = item as Record<string, unknown>;
-          return (
-            extractTextFromObject(objectItem) ||
-            extractSummaryFromObject(objectItem) ||
-            JSON.stringify(item, null, 2)
-          );
+          return formatObjectToRichText(item as Record<string, unknown>);
         }
         return String(item).trim();
       })
       .filter(Boolean);
 
-  if (typeof normalizedValue === "string") {
-    const trimmed = normalizedValue.trim();
-
+  if (typeof parsedValue === "string") {
+    const trimmed = parsedValue.trim();
     if (!trimmed) return [];
 
-    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
-      try {
-        return parseScenarioInsights(JSON.parse(trimmed));
-      } catch {
-        const parts = trimmed
-          .split(/\n{2,}/)
-          .map((part) => part.trim())
-          .filter(Boolean);
-
-        return parts.map((part, index) => ({
-          title: `Сценарий ${index + 1}`,
-          summary: part,
-          bullets: [],
-        }));
-      }
-    }
-
-    const parts = trimmed
+    return trimmed
       .split(/\n{2,}/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-
-    return parts.map((part, index) => ({
-      title: `Сценарий ${index + 1}`,
-      summary: part,
-      bullets: [],
-    }));
+      .map((part, index) => ({
+        title: `Сценарий ${index + 1}`,
+        summary: part.trim(),
+        bullets: [],
+      }))
+      .filter((item) => item.summary);
   }
 
-  if (Array.isArray(normalizedValue)) {
-    return normalizedValue
+  if (Array.isArray(parsedValue)) {
+    return parsedValue
       .map((item, index) => {
         if (typeof item === "string") {
           return {
@@ -209,8 +257,26 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
 
         if (item && typeof item === "object") {
           const objectItem = item as Record<string, unknown>;
-          const title = extractTextFromObject(objectItem) || `Сценарий ${index + 1}`;
-          const summary = extractSummaryFromObject(objectItem);
+
+          const title =
+            typeof objectItem.title === "string"
+              ? objectItem.title
+              : typeof objectItem.name === "string"
+                ? objectItem.name
+                : typeof objectItem.topic === "string"
+                  ? objectItem.topic
+                  : `Сценарий ${index + 1}`;
+
+          const summaryParts = [
+            typeof objectItem.format === "string" ? `**Формат:** ${objectItem.format}` : "",
+            typeof objectItem.platform === "string" ? `**Платформа:** ${objectItem.platform}` : "",
+            typeof objectItem.hook === "string" ? `**Хук:** ${objectItem.hook}` : "",
+            typeof objectItem.description === "string" ? `**Описание:** ${objectItem.description}` : "",
+            typeof objectItem.summary === "string" ? `**Кратко:** ${objectItem.summary}` : "",
+            typeof objectItem.script === "string" ? `**Сценарий:** ${objectItem.script}` : "",
+            typeof objectItem.cta === "string" ? `**CTA:** ${objectItem.cta}` : "",
+          ].filter(Boolean);
+
           const bullets =
             Array.isArray(objectItem.points)
               ? normalizeBulletList(objectItem.points)
@@ -220,13 +286,11 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
                   ? normalizeBulletList(objectItem.items)
                   : Array.isArray(objectItem.steps)
                     ? normalizeBulletList(objectItem.steps)
-                    : Array.isArray(objectItem.hooks)
-                      ? normalizeBulletList(objectItem.hooks)
-                      : [];
+                    : [];
 
           return {
             title,
-            summary,
+            summary: summaryParts.join("\n\n"),
             bullets,
           };
         }
@@ -240,84 +304,14 @@ function parseScenarioInsights(value: unknown): ScenarioInsight[] {
       .filter((item) => item.title || item.summary || item.bullets.length > 0);
   }
 
-  if (normalizedValue && typeof normalizedValue === "object") {
-    const objectValue = normalizedValue as Record<string, unknown>;
-
-    if (
-      "title" in objectValue ||
-      "name" in objectValue ||
-      "description" in objectValue ||
-      "summary" in objectValue ||
-      "analysis" in objectValue ||
-      "text" in objectValue
-    ) {
-      return [
-        {
-          title: extractTextFromObject(objectValue) || "Сценарий",
-          summary: extractSummaryFromObject(objectValue),
-          bullets:
-            Array.isArray(objectValue.points)
-              ? normalizeBulletList(objectValue.points)
-              : Array.isArray(objectValue.bullets)
-                ? normalizeBulletList(objectValue.bullets)
-                : Array.isArray(objectValue.items)
-                  ? normalizeBulletList(objectValue.items)
-                  : Array.isArray(objectValue.steps)
-                    ? normalizeBulletList(objectValue.steps)
-                    : Array.isArray(objectValue.hooks)
-                      ? normalizeBulletList(objectValue.hooks)
-                      : [],
-        },
-      ];
-    }
-
-    return Object.entries(objectValue).flatMap(([key, nestedValue], index) => {
-      const unwrappedNested = unwrapStructuredValue(nestedValue);
-
-      if (Array.isArray(unwrappedNested)) {
-        return [
-          {
-            title: key,
-            summary: "",
-            bullets: normalizeBulletList(unwrappedNested),
-          },
-        ];
-      }
-
-      if (unwrappedNested && typeof unwrappedNested === "object") {
-        const nestedObject = unwrappedNested as Record<string, unknown>;
-        return [
-          {
-            title: extractTextFromObject(nestedObject) || key || `Сценарий ${index + 1}`,
-            summary: extractSummaryFromObject(nestedObject),
-            bullets:
-              Array.isArray(nestedObject.points)
-                ? normalizeBulletList(nestedObject.points)
-                : Array.isArray(nestedObject.bullets)
-                  ? normalizeBulletList(nestedObject.bullets)
-                  : Array.isArray(nestedObject.items)
-                    ? normalizeBulletList(nestedObject.items)
-                    : Array.isArray(nestedObject.steps)
-                      ? normalizeBulletList(nestedObject.steps)
-                      : Array.isArray(nestedObject.hooks)
-                        ? normalizeBulletList(nestedObject.hooks)
-                        : [],
-          },
-        ];
-      }
-
-      if (typeof unwrappedNested === "string") {
-        return [
-          {
-            title: key,
-            summary: unwrappedNested,
-            bullets: [],
-          },
-        ];
-      }
-
-      return [];
-    });
+  if (parsedValue && typeof parsedValue === "object") {
+    return [
+      {
+        title: "Сценарий",
+        summary: formatObjectToRichText(parsedValue as Record<string, unknown>),
+        bullets: [],
+      },
+    ];
   }
 
   return [];
@@ -409,8 +403,8 @@ function InsightList({
     <div className="grid gap-3">
       {items.map((item, index) => (
         <div
-          key={`${item}-${index}`}
-          className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4 sm:p-4"
+          key={`${index}-${item.slice(0, 40)}`}
+          className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4"
         >
           <div className="flex items-start gap-3">
             <div
