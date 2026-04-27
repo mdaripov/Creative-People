@@ -1,7 +1,6 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import type { ReactNode } from "react";
 
 interface FormattedRichTextProps {
   text: string;
