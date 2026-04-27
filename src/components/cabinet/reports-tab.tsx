@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -85,6 +85,8 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
+  const [newEntryId, setNewEntryId] = useState<string | null>(null);
+  const newEntryRef = useRef<HTMLTableRowElement | null>(null);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -126,12 +128,47 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     void loadReports();
   }, [userId, role]);
 
+  useEffect(() => {
+    if (!newEntryId || !newEntryRef.current) return;
+
+    newEntryRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    const firstField = newEntryRef.current.querySelector("textarea, input, select") as
+      | HTMLTextAreaElement
+      | HTMLInputElement
+      | HTMLSelectElement
+      | null;
+
+    if (firstField) {
+      firstField.focus();
+    }
+
+    const timeout = window.setTimeout(() => {
+      setNewEntryId(null);
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [newEntryId, filteredEntriesLength(entries, selectedClient)]);
+
   const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
+    const result = entries.filter((entry) => {
       const matchesClient = selectedClient === "all" || entry.client === selectedClient;
       return matchesClient;
     });
-  }, [entries, selectedClient]);
+
+    return [...result].sort((a, b) => {
+      if (a.id === newEntryId) return -1;
+      if (b.id === newEntryId) return 1;
+
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+
+      return b.startTime.localeCompare(a.startTime);
+    });
+  }, [entries, selectedClient, newEntryId]);
 
   const totalForSelectedDate = useMemo(() => {
     const durations = entries
@@ -263,6 +300,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       },
       ...prev,
     ]);
+    setNewEntryId(data.id);
 
     toast.success("Новая запись добавлена");
   };
@@ -383,79 +421,87 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       </div>
                     </td>
                   </tr>
-                ) : filteredEntries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-[#1E1E1E] align-top">
-                    <td className="px-4 py-3">
-                      <Input
-                        type="date"
-                        value={entry.date}
-                        onChange={(event) => void updateEntry(entry.id, "date", event.target.value)}
-                        className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        list={`clients-${entry.id}`}
-                        value={entry.client}
-                        onChange={(event) => void updateEntry(entry.id, "client", event.target.value)}
-                        className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
-                        placeholder="Название клиента"
-                      />
-                      <datalist id={`clients-${entry.id}`}>
-                        {clients.map((client) => (
-                          <option key={client.id} value={client.name} />
-                        ))}
-                      </datalist>
-                    </td>
-                    <td className="px-4 py-3">
-                      <textarea
-                        value={entry.task}
-                        onChange={(event) => void updateEntry(entry.id, "task", event.target.value)}
-                        className="min-h-[88px] w-full min-w-[280px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
-                        placeholder="Описание выполненной задачи"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="time"
-                        value={entry.startTime}
-                        onChange={(event) => void updateEntry(entry.id, "startTime", event.target.value)}
-                        className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="time"
-                        value={entry.endTime}
-                        onChange={(event) => void updateEntry(entry.id, "endTime", event.target.value)}
-                        className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex h-11 min-w-[110px] items-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 px-4 text-sm font-semibold text-[#34D399]">
-                        {durationBetween(entry.startTime, entry.endTime)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <textarea
-                        value={entry.notes}
-                        onChange={(event) => void updateEntry(entry.id, "notes", event.target.value)}
-                        className="min-h-[88px] w-full min-w-[260px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
-                        placeholder="Ссылки, графика, комментарии"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => void removeEntry(entry.id)}
-                        disabled={isMutating}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:opacity-60"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Удалить
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                ) : filteredEntries.map((entry) => {
+                  const isNewEntry = entry.id === newEntryId;
+
+                  return (
+                    <tr
+                      key={entry.id}
+                      ref={isNewEntry ? newEntryRef : null}
+                      className={`border-b border-[#1E1E1E] align-top ${isNewEntry ? "bg-[#38BDF8]/[0.04]" : ""}`}
+                    >
+                      <td className="px-4 py-3">
+                        <Input
+                          type="date"
+                          value={entry.date}
+                          onChange={(event) => void updateEntry(entry.id, "date", event.target.value)}
+                          className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          list={`clients-${entry.id}`}
+                          value={entry.client}
+                          onChange={(event) => void updateEntry(entry.id, "client", event.target.value)}
+                          className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
+                          placeholder="Название клиента"
+                        />
+                        <datalist id={`clients-${entry.id}`}>
+                          {clients.map((client) => (
+                            <option key={client.id} value={client.name} />
+                          ))}
+                        </datalist>
+                      </td>
+                      <td className="px-4 py-3">
+                        <textarea
+                          value={entry.task}
+                          onChange={(event) => void updateEntry(entry.id, "task", event.target.value)}
+                          className="min-h-[88px] w-full min-w-[280px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
+                          placeholder="Описание выполненной задачи"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="time"
+                          value={entry.startTime}
+                          onChange={(event) => void updateEntry(entry.id, "startTime", event.target.value)}
+                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="time"
+                          value={entry.endTime}
+                          onChange={(event) => void updateEntry(entry.id, "endTime", event.target.value)}
+                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex h-11 min-w-[110px] items-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 px-4 text-sm font-semibold text-[#34D399]">
+                          {durationBetween(entry.startTime, entry.endTime)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <textarea
+                          value={entry.notes}
+                          onChange={(event) => void updateEntry(entry.id, "notes", event.target.value)}
+                          className="min-h-[88px] w-full min-w-[260px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
+                          placeholder="Ссылки, графика, комментарии"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => void removeEntry(entry.id)}
+                          disabled={isMutating}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:opacity-60"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Удалить
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {!isLoading && filteredEntries.length === 0 ? (
                   <tr>
@@ -471,4 +517,11 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       </div>
     </div>
   );
+}
+
+function filteredEntriesLength(entries: ReportEntry[], selectedClient: string) {
+  return entries.filter((entry) => {
+    const matchesClient = selectedClient === "all" || entry.client === selectedClient;
+    return matchesClient;
+  }).length;
 }
