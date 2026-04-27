@@ -21,6 +21,14 @@ function getWeekStartDate() {
   return date.toISOString().split("T")[0];
 }
 
+function isMissingControllerTableError(message: string) {
+  return (
+    message.includes("controller_plans") ||
+    message.includes("controller_plan_tasks") ||
+    message.includes("schema cache")
+  );
+}
+
 export function useControllerPlan(
   clientId: string,
   userId: string,
@@ -51,7 +59,17 @@ export function useControllerPlan(
       const { data: planRows, error: planError } = await planQuery.limit(1);
 
       if (planError) {
-        toast.error(getReadableAuthError(planError));
+        const message = getReadableAuthError(planError);
+
+        if (isMissingControllerTableError(message)) {
+          toast.error("Таблицы плана контроллера ещё не созданы в Supabase.");
+          setTasks([]);
+          setPlanId(null);
+          setLoading(false);
+          return;
+        }
+
+        toast.error(message);
         setTasks([]);
         setPlanId(null);
         setLoading(false);
@@ -82,7 +100,16 @@ export function useControllerPlan(
       const { data: taskRows, error: taskError } = await taskQuery;
 
       if (taskError) {
-        toast.error(getReadableAuthError(taskError));
+        const message = getReadableAuthError(taskError);
+
+        if (isMissingControllerTableError(message)) {
+          toast.error("Таблицы задач контроллера ещё не созданы в Supabase.");
+          setTasks([]);
+          setLoading(false);
+          return;
+        }
+
+        toast.error(message);
         setTasks([]);
         setLoading(false);
         return;
@@ -115,7 +142,14 @@ export function useControllerPlan(
       .single();
 
     if (error) {
-      toast.error(getReadableAuthError(error));
+      const message = getReadableAuthError(error);
+
+      if (isMissingControllerTableError(message)) {
+        toast.error("Сначала нужно создать таблицы контроллера в Supabase.");
+        return null;
+      }
+
+      toast.error(message);
       return null;
     }
 
@@ -150,7 +184,14 @@ export function useControllerPlan(
     setSaving(false);
 
     if (error) {
-      toast.error(getReadableAuthError(error));
+      const message = getReadableAuthError(error);
+
+      if (isMissingControllerTableError(message)) {
+        toast.error("Таблица задач контроллера ещё не создана в Supabase.");
+        return;
+      }
+
+      toast.error(message);
       return;
     }
 
@@ -188,7 +229,15 @@ export function useControllerPlan(
           task.id === taskId ? { ...task, done: current.done } : task
         )
       );
-      toast.error(getReadableAuthError(error));
+
+      const message = getReadableAuthError(error);
+
+      if (isMissingControllerTableError(message)) {
+        toast.error("Таблица задач контроллера ещё не создана в Supabase.");
+        return;
+      }
+
+      toast.error(message);
     }
   };
 
