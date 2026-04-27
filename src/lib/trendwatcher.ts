@@ -1,0 +1,583 @@
+export type ReportRecord = {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  generated_at: string | null;
+  status: string | null;
+  competitors: unknown;
+  trends: unknown;
+  scenarios: unknown;
+};
+
+export type TrendPriority = "high" | "medium" | "low";
+export type ViewMode = "overview" | "detailed";
+
+export interface NormalizedTrendItem {
+  id: string;
+  title: string;
+  platform: string;
+  category: string;
+  freshness: string;
+  whyItMatters: string;
+  source: string;
+  priority: TrendPriority;
+  action: string;
+  rawText: string;
+}
+
+export interface NormalizedCompetitorItem {
+  id: string;
+  name: string;
+  platform: string;
+  source: string;
+  observation: string;
+  insight: string;
+  recommendation: string;
+  differentiation: string;
+  rawText: string;
+}
+
+export interface NormalizedScenarioItem {
+  id: string;
+  title: string;
+  format: string;
+  platform: string;
+  hook: string;
+  structure: string;
+  cta: string;
+  expectedEffect: string;
+  bullets: string[];
+  status: "ready" | "adapt" | "raw";
+  rawText: string;
+}
+
+export interface NormalizedReportSummary {
+  totalInsights: number;
+  priorityInsights: number;
+  readyToTest: number;
+  primaryFocus: string;
+  updatedLabel: string;
+  sourceLabel: string;
+}
+
+export interface NormalizedReport {
+  id: string;
+  title: string;
+  status: string;
+  generatedAt: string | null;
+  trends: NormalizedTrendItem[];
+  competitors: NormalizedCompetitorItem[];
+  scenarios: NormalizedScenarioItem[];
+  summary: NormalizedReportSummary;
+}
+
+const PRIORITY_ORDER: TrendPriority[] = ["high", "medium", "low"];
+
+function safeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function toArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+export function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
+  const reportClientId = normalizeValue(report.client_id);
+  const reportClientName = normalizeValue(report.client_name);
+  const normalizedName = normalizeValue(clientName);
+  const normalizedId = normalizeValue(clientId);
+
+  if (!reportClientId && !reportClientName) return 0;
+
+  const values = [reportClientId, reportClientName].filter(Boolean);
+
+  if (values.includes(normalizedId) || values.includes(normalizedName)) return 100;
+  if (values.some((value) => value.includes(normalizedId) || normalizedId.includes(value))) return 80;
+  if (values.some((value) => value.includes(normalizedName) || normalizedName.includes(value))) return 70;
+
+  const nameWords = normalizedName.split(/\s+/).filter(Boolean);
+  const matchedWords = nameWords.filter((word) => values.some((value) => value.includes(word)));
+
+  if (matchedWords.length > 0) return 40 + matchedWords.length;
+
+  return 0;
+}
+
+export function unwrapStructuredValue(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const objectValue = value as Record<string, unknown>;
+
+  if ("scenarios" in objectValue) return objectValue.scenarios;
+  if ("scenario_analytics" in objectValue) return objectValue.scenario_analytics;
+  if ("analytics" in objectValue) return objectValue.analytics;
+  if ("data" in objectValue) return unwrapStructuredValue(objectValue.data);
+  if ("report" in objectValue) return unwrapStructuredValue(objectValue.report);
+  if ("result" in objectValue) return unwrapStructuredValue(objectValue.result);
+  if ("output" in objectValue) return unwrapStructuredValue(objectValue.output);
+
+  return value;
+}
+
+export function parseUnknownJson(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return value;
+
+  if (
+    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("\"[") && trimmed.endsWith("]\"")) ||
+    (trimmed.startsWith("\"{") && trimmed.endsWith("}\""))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      try {
+        return JSON.parse(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+  }
+
+  return value;
+}
+
+export function prettifyKey(key: string) {
+  const dictionary: Record<string, string> = {
+    name: "Название",
+    title: "Название",
+    topic: "Тема",
+    format: "Формат",
+    platform: "Платформа",
+    description: "Описание",
+    summary: "Кратко",
+    analysis: "Анализ",
+    why_works: "Почему работает",
+    why_viral: "Почему вирусится",
+    source: "Источник",
+    date: "Дата",
+    website: "Сайт",
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    hook: "Хук",
+    script: "Сценарий",
+    cta: "CTA",
+    headline: "Заголовок",
+    label: "Метка",
+    insight: "Инсайт",
+    text: "Текст",
+    category: "Категория",
+    relevance: "Приоритет",
+    recommendation: "Рекомендация",
+    expected_result: "Ожидаемый эффект",
+    difficulty: "Сложность",
+    status: "Статус",
+  };
+
+  if (dictionary[key]) return dictionary[key];
+
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function formatObjectToRichText(value: Record<string, unknown>) {
+  const priorityOrder = [
+    "name",
+    "title",
+    "topic",
+    "headline",
+    "format",
+    "platform",
+    "description",
+    "summary",
+    "analysis",
+    "why_works",
+    "why_viral",
+    "source",
+    "date",
+    "website",
+    "instagram",
+    "tiktok",
+    "hook",
+    "script",
+    "cta",
+    "recommendation",
+    "expected_result",
+    "status",
+  ];
+
+  const entries = Object.entries(value).filter(([, raw]) => {
+    if (raw === null || raw === undefined) return false;
+    if (typeof raw === "string") return raw.trim().length > 0;
+    if (Array.isArray(raw)) return raw.length > 0;
+    return true;
+  });
+
+  const sortedEntries = entries.sort(([a], [b]) => {
+    const aIndex = priorityOrder.indexOf(a);
+    const bIndex = priorityOrder.indexOf(b);
+
+    const safeA = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+    const safeB = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+
+    return safeA - safeB;
+  });
+
+  return sortedEntries
+    .map(([key, raw]) => {
+      const label = prettifyKey(key);
+
+      if (typeof raw === "string") {
+        return `**${label}:** ${raw}`;
+      }
+
+      if (Array.isArray(raw)) {
+        const items = raw
+          .map((item) =>
+            typeof item === "string"
+              ? `- ${item}`
+              : typeof item === "object" && item
+                ? `- ${formatObjectToRichText(item as Record<string, unknown>).replace(/\n/g, " ")}`
+                : `- ${String(item)}`
+          )
+          .join("\n");
+
+        return `**${label}:**\n${items}`;
+      }
+
+      if (typeof raw === "object" && raw) {
+        return `**${label}:**\n${formatObjectToRichText(raw as Record<string, unknown>)}`;
+      }
+
+      return `**${label}:** ${String(raw)}`;
+    })
+    .join("\n\n");
+}
+
+function normalizeAny(value: unknown): unknown {
+  const unwrapped = unwrapStructuredValue(value);
+  return typeof unwrapped === "string" ? parseUnknownJson(unwrapped) : unwrapped;
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function firstNonEmpty(...values: unknown[]) {
+  for (const value of values) {
+    const text = safeString(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function extractPriority(value: Record<string, unknown>): TrendPriority {
+  const raw = normalizeValue(
+    firstNonEmpty(value.relevance, value.priority, value.status, value.label)
+  );
+
+  if (raw.includes("high") || raw.includes("выс") || raw.includes("важ") || raw.includes("hot")) {
+    return "high";
+  }
+  if (raw.includes("med") || raw.includes("сред")) {
+    return "medium";
+  }
+  return "low";
+}
+
+function actionByPriority(priority: TrendPriority) {
+  if (priority === "high") return "Использовать в контенте";
+  if (priority === "medium") return "Проверить у клиента";
+  return "Отложить";
+}
+
+function derivePrimaryFocus(report: {
+  trends: NormalizedTrendItem[];
+  competitors: NormalizedCompetitorItem[];
+  scenarios: NormalizedScenarioItem[];
+}) {
+  const topTrend = [...report.trends].sort(
+    (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)
+  )[0];
+
+  if (topTrend) {
+    return `${topTrend.platform || "Контент"}: ${topTrend.title}`;
+  }
+
+  if (report.scenarios[0]) {
+    return `Сначала протестировать сценарий «${report.scenarios[0].title}»`;
+  }
+
+  if (report.competitors[0]) {
+    return `Проверить подход конкурента ${report.competitors[0].name}`;
+  }
+
+  return "Новых приоритетов пока не найдено";
+}
+
+function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
+  if (typeof item === "string") {
+    return {
+      id: `trend-${index}`,
+      title: `Тренд ${index + 1}`,
+      platform: "Все платформы",
+      category: "Инсайт",
+      freshness: "Без даты",
+      whyItMatters: item,
+      source: "Не указан",
+      priority: "medium",
+      action: "Проверить у клиента",
+      rawText: item,
+    };
+  }
+
+  const objectItem = asObject(item);
+
+  if (!objectItem) {
+    const rawText = String(item);
+    return {
+      id: `trend-${index}`,
+      title: `Тренд ${index + 1}`,
+      platform: "Все платформы",
+      category: "Инсайт",
+      freshness: "Без даты",
+      whyItMatters: rawText,
+      source: "Не указан",
+      priority: "medium",
+      action: "Проверить у клиента",
+      rawText,
+    };
+  }
+
+  const title = firstNonEmpty(objectItem.title, objectItem.name, objectItem.topic, objectItem.headline) || `Тренд ${index + 1}`;
+  const platform = firstNonEmpty(objectItem.platform, objectItem.channel) || "Все платформы";
+  const category = firstNonEmpty(objectItem.category, objectItem.type, objectItem.format) || "Тренд";
+  const freshness = firstNonEmpty(objectItem.date, objectItem.freshness, objectItem.updated_at) || "Без даты";
+  const whyItMatters =
+    firstNonEmpty(
+      objectItem.why_works,
+      objectItem.why_viral,
+      objectItem.summary,
+      objectItem.description,
+      objectItem.analysis,
+      objectItem.insight
+    ) || "Инсайт без пояснения";
+  const source = firstNonEmpty(objectItem.source, objectItem.website, objectItem.instagram, objectItem.tiktok) || "Не указан";
+  const priority = extractPriority(objectItem);
+  const rawText = formatObjectToRichText(objectItem);
+
+  return {
+    id: safeString(objectItem.id) || `trend-${index}`,
+    title,
+    platform,
+    category,
+    freshness,
+    whyItMatters,
+    source,
+    priority,
+    action: actionByPriority(priority),
+    rawText,
+  };
+}
+
+function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompetitorItem {
+  if (typeof item === "string") {
+    return {
+      id: `competitor-${index}`,
+      name: `Ориентир ${index + 1}`,
+      platform: "Не указана",
+      source: "Не указан",
+      observation: item,
+      insight: "Нужна ручная интерпретация",
+      recommendation: "Проверить и адаптировать под клиента",
+      differentiation: "Не копировать напрямую",
+      rawText: item,
+    };
+  }
+
+  const objectItem = asObject(item);
+
+  if (!objectItem) {
+    const rawText = String(item);
+    return {
+      id: `competitor-${index}`,
+      name: `Ориентир ${index + 1}`,
+      platform: "Не указана",
+      source: "Не указан",
+      observation: rawText,
+      insight: "Нужна ручная интерпретация",
+      recommendation: "Проверить и адаптировать под клиента",
+      differentiation: "Не копировать напрямую",
+      rawText,
+    };
+  }
+
+  const name = firstNonEmpty(objectItem.name, objectItem.title, objectItem.source) || `Ориентир ${index + 1}`;
+  const platform = firstNonEmpty(objectItem.platform, objectItem.channel, objectItem.instagram ? "Instagram" : "", objectItem.tiktok ? "TikTok" : "") || "Не указана";
+  const source = firstNonEmpty(objectItem.source, objectItem.website, objectItem.instagram, objectItem.tiktok) || "Не указан";
+  const observation =
+    firstNonEmpty(objectItem.description, objectItem.summary, objectItem.analysis, objectItem.text) || "Наблюдение не распознано";
+  const insight =
+    firstNonEmpty(objectItem.why_works, objectItem.why_viral, objectItem.insight) || "Что сработало, нужно уточнить";
+  const recommendation =
+    firstNonEmpty(objectItem.recommendation, objectItem.adaptation, objectItem.hook) || "Адаптировать подход под бренд клиента";
+  const differentiation =
+    firstNonEmpty(objectItem.risk, objectItem.comment, objectItem.note) || "Сохранять отличие по тону и подаче";
+  const rawText = formatObjectToRichText(objectItem);
+
+  return {
+    id: safeString(objectItem.id) || `competitor-${index}`,
+    name,
+    platform,
+    source,
+    observation,
+    insight,
+    recommendation,
+    differentiation,
+    rawText,
+  };
+}
+
+function deriveScenarioStatus(item: Record<string, unknown>) {
+  const status = normalizeValue(firstNonEmpty(item.status, item.difficulty, item.readiness));
+
+  if (status.includes("ready") || status.includes("готов")) return "ready";
+  if (status.includes("adapt") || status.includes("нуж")) return "adapt";
+  return "raw";
+}
+
+function normalizeScenarioItem(item: unknown, index: number): NormalizedScenarioItem {
+  if (typeof item === "string") {
+    return {
+      id: `scenario-${index}`,
+      title: `Сценарий ${index + 1}`,
+      format: "Не указан",
+      platform: "Все платформы",
+      hook: "",
+      structure: item,
+      cta: "",
+      expectedEffect: "",
+      bullets: [],
+      status: "raw",
+      rawText: item,
+    };
+  }
+
+  const objectItem = asObject(item);
+
+  if (!objectItem) {
+    const rawText = String(item);
+    return {
+      id: `scenario-${index}`,
+      title: `Сценарий ${index + 1}`,
+      format: "Не указан",
+      platform: "Все платформы",
+      hook: "",
+      structure: rawText,
+      cta: "",
+      expectedEffect: "",
+      bullets: [],
+      status: "raw",
+      rawText,
+    };
+  }
+
+  const bullets = [
+    ...toArray(objectItem.points),
+    ...toArray(objectItem.bullets),
+    ...toArray(objectItem.items),
+    ...toArray(objectItem.steps),
+  ]
+    .map((bullet) => (typeof bullet === "string" ? bullet.trim() : formatObjectToRichText((bullet as Record<string, unknown>) || {})))
+    .filter(Boolean);
+
+  const rawText = formatObjectToRichText(objectItem);
+
+  return {
+    id: safeString(objectItem.id) || `scenario-${index}`,
+    title: firstNonEmpty(objectItem.title, objectItem.name, objectItem.topic) || `Сценарий ${index + 1}`,
+    format: firstNonEmpty(objectItem.format, objectItem.type) || "Не указан",
+    platform: firstNonEmpty(objectItem.platform, objectItem.channel) || "Все платформы",
+    hook: firstNonEmpty(objectItem.hook, objectItem.headline),
+    structure: firstNonEmpty(objectItem.script, objectItem.summary, objectItem.description) || rawText,
+    cta: firstNonEmpty(objectItem.cta, objectItem.recommendation),
+    expectedEffect: firstNonEmpty(objectItem.expected_result, objectItem.expectedEffect, objectItem.analysis),
+    bullets,
+    status: deriveScenarioStatus(objectItem),
+    rawText,
+  };
+}
+
+function getCollection(value: unknown) {
+  const normalized = normalizeAny(value);
+
+  if (Array.isArray(normalized)) return normalized;
+
+  if (typeof normalized === "string") {
+    return normalized
+      .split(/\n{2,}|•/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (normalized && typeof normalized === "object") {
+    return [normalized];
+  }
+
+  return [];
+}
+
+function formatUpdatedLabel(date: string | null) {
+  if (!date) return "Дата не указана";
+  return new Date(date).toLocaleString("ru-RU");
+}
+
+export function normalizeReport(report: ReportRecord, sourceLabel: string): NormalizedReport {
+  const trends = getCollection(report.trends).map(normalizeTrendItem);
+  const competitors = getCollection(report.competitors).map(normalizeCompetitorItem);
+  const scenarios = getCollection(report.scenarios).map(normalizeScenarioItem);
+
+  const totalInsights = trends.length + competitors.length + scenarios.length;
+  const priorityInsights = trends.filter((item) => item.priority === "high").length;
+  const readyToTest = scenarios.filter((item) => item.status === "ready").length;
+
+  return {
+    id: report.id,
+    title: report.client_name || report.client_id || "Отчёт по трендам",
+    status: report.status || "new",
+    generatedAt: report.generated_at,
+    trends,
+    competitors,
+    scenarios,
+    summary: {
+      totalInsights,
+      priorityInsights,
+      readyToTest,
+      primaryFocus: derivePrimaryFocus({ trends, competitors, scenarios }),
+      updatedLabel: formatUpdatedLabel(report.generated_at),
+      sourceLabel,
+    },
+  };
+}
+
+export function getPlatformOptions(report: NormalizedReport) {
+  const values = new Set<string>();
+
+  report.trends.forEach((item) => values.add(item.platform));
+  report.competitors.forEach((item) => values.add(item.platform));
+  report.scenarios.forEach((item) => values.add(item.platform));
+
+  return ["Все платформы", ...Array.from(values).filter(Boolean)];
+}
