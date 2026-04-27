@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientsOverview } from "@/components/clients-overview";
 import { DashboardNav } from "@/components/dashboard-nav";
@@ -20,6 +20,7 @@ export default function Home() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mainView, setMainView] = useState<MainView>("home");
   const [clientSourceView, setClientSourceView] = useState<"clients" | "cabinet">("clients");
   const [supabaseClients, setSupabaseClients] = useState<Array<{ id: string; name: string }>>([]);
@@ -121,12 +122,26 @@ export default function Home() {
       <aside
         className={`
           fixed lg:relative z-30 lg:z-auto
-          h-full w-72 flex-shrink-0
-          transform transition-transform duration-300 ease-in-out
+          h-full flex-shrink-0
+          transform transition-all duration-300 ease-in-out
+          ${sidebarCollapsed ? "w-20" : "w-72"}
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        <div className="flex h-full flex-col border-r border-[#1E1E1E] bg-[#111111]">
+        <div className="relative flex h-full flex-col border-r border-[#1E1E1E] bg-[#111111]">
+          <button
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            className="absolute right-3 top-3 z-10 hidden h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A2A] bg-[#161616] text-[#9CA3AF] transition-colors hover:text-white lg:flex"
+            aria-label={sidebarCollapsed ? "Развернуть боковую панель" : "Свернуть боковую панель"}
+            title={sidebarCollapsed ? "Развернуть" : "Свернуть"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+
           <div className="min-h-0 flex-1">
             <ClientSidebar
               selectedClientId={selectedClientId}
@@ -138,6 +153,7 @@ export default function Home() {
               onClientsLoaded={handleClientsLoaded}
               mode={showCabinetSidebar ? "cabinet" : "default"}
               onOpenMentor={handleOpenMentor}
+              collapsed={sidebarCollapsed}
             />
           </div>
         </div>
