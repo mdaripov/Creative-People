@@ -54,6 +54,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
       }
 
       const localClientIds = readLocalClientIds(userId);
+      setClientIds(localClientIds);
 
       const { data, error } = await supabase
         .from("specialist_clients")
@@ -61,14 +62,15 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         .eq("specialist_id", userId);
 
       if (error) {
-        setClientIds(localClientIds);
         setLoading(false);
         return;
       }
 
       const remoteClientIds = (data ?? []).map((item) => item.client_id);
-      setClientIds(remoteClientIds);
-      writeLocalClientIds(userId, remoteClientIds);
+      const nextIds = remoteClientIds.length > 0 ? remoteClientIds : localClientIds;
+
+      setClientIds(nextIds);
+      writeLocalClientIds(userId, nextIds);
       setLoading(false);
     };
 
