@@ -78,20 +78,17 @@ function renderInlineFormatting(text: string, keyPrefix: string, accent: string)
       const { url, trailing } = cleanUrlToken(part);
 
       return (
-        <span key={key}>
+        <span key={key} className="relative z-20 inline pointer-events-auto">
           <a
             href={url}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline text-sm underline decoration-1 underline-offset-4 break-all hover:opacity-80"
+            className="relative z-20 inline-flex items-center gap-1 break-all underline decoration-1 underline-offset-4 pointer-events-auto cursor-pointer hover:opacity-80"
             style={{ color: accent }}
           >
-            {url}
+            <span>{url}</span>
+            <ExternalLink className="h-3 w-3 flex-shrink-0" />
           </a>
-          <ExternalLink
-            className="ml-1 inline h-3 w-3 align-text-top"
-            style={{ color: accent }}
-          />
           {trailing ? <span>{trailing}</span> : null}
         </span>
       );
@@ -258,12 +255,12 @@ export function FormattedRichText({
 
         if (block.type === "paragraph") {
           return (
-            <p
+            <div
               key={key}
               className="text-sm leading-7 text-[#E5E7EB] sm:text-[15px] sm:leading-7"
             >
               {renderInlineFormatting(block.text, `${key}-paragraph`, accent)}
-            </p>
+            </div>
           );
         }
 
@@ -279,12 +276,12 @@ export function FormattedRichText({
             >
               <div className="space-y-2">
                 {block.lines.map((line, lineIndex) => (
-                  <p
+                  <div
                     key={`${key}-quote-${lineIndex}`}
                     className="text-sm leading-7 text-[#F3F4F6]"
                   >
                     {renderInlineFormatting(line, `${key}-quote-inline-${lineIndex}`, accent)}
-                  </p>
+                  </div>
                 ))}
               </div>
             </div>
@@ -300,9 +297,9 @@ export function FormattedRichText({
                     className="mt-2 h-2 w-2 flex-shrink-0 rounded-full"
                     style={{ backgroundColor: accent }}
                   />
-                  <span className="text-sm leading-7 text-[#E5E7EB]">
+                  <div className="text-sm leading-7 text-[#E5E7EB]">
                     {renderInlineFormatting(item, `${key}-bullet-inline-${itemIndex}`, accent)}
-                  </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -324,9 +321,9 @@ export function FormattedRichText({
                   >
                     {itemIndex + 1}
                   </span>
-                  <span className="pt-0.5 text-sm leading-7 text-[#E5E7EB]">
+                  <div className="pt-0.5 text-sm leading-7 text-[#E5E7EB]">
                     {renderInlineFormatting(item, `${key}-ordered-inline-${itemIndex}`, accent)}
-                  </span>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -343,12 +340,12 @@ export function FormattedRichText({
             </h4>
             <div className="space-y-3">
               {block.body.map((line, lineIndex) => (
-                <p
+                <div
                   key={`${key}-section-line-${lineIndex}`}
                   className="text-sm leading-7 text-[#E5E7EB] sm:text-[15px]"
                 >
                   {renderInlineFormatting(line, `${key}-section-inline-${lineIndex}`, accent)}
-                </p>
+                </div>
               ))}
             </div>
           </div>
