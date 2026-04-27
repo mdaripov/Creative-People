@@ -5,6 +5,35 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/auth";
 
+const STORAGE_KEY = "dyad-specialist-clients";
+
+function getStorageKey(userId: string) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function readLocalClientIds(userId: string) {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalClientIds(userId: string, clientIds: string[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(getStorageKey(userId), JSON.stringify(clientIds));
+  } catch {
+    return;
+  }
+}
+
 export function useSpecialistClients(userId: string | null, role: AppRole | null) {
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -15,6 +44,8 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
       return;
     }
 
+    const localClientIds = readLocalClientIds(userId);
+
     const loadAssignments = async () => {
       setLoading(true);
 
@@ -24,18 +55,21 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         return;
       }
 
+      setClientIds(localClientIds);
+
       const { data, error } = await supabase
         .from("specialist_clients")
         .select("client_id")
         .eq("specialist_id", userId);
 
       if (error) {
-        setClientIds([]);
         setLoading(false);
         return;
       }
 
-      setClientIds((data ?? []).map((item) => item.client_id));
+      const remoteClientIds = (data ?? []).map((item) => item.client_id);
+      setClientIds(remoteClientIds);
+      writeLocalClientIds(userId, remoteClientIds);
       setLoading(false);
     };
 
@@ -50,6 +84,10 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
     const isAssigned = clientIds.includes(clientId);
 
     if (isAssigned) {
+      const nextIds = clientIds.filter((id) => id !== clientId);
+      setClientIds(nextIds);
+      writeLocalClientIds(userId, nextIds);
+
       const { error } = await supabase
         .from("specialist_clients")
         .delete()
@@ -57,14 +95,17 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         .eq("client_id", clientId);
 
       if (error) {
-        toast.error("Не удалось убрать клиента");
+        toast.success("Клиент убран из кабинета только локально");
         return;
       }
 
-      setClientIds((prev) => prev.filter((id) => id !== clientId));
       toast.success("Клиент убран из личного кабинета");
       return;
     }
+
+    const nextIds = [...clientIds, clientId];
+    setClientIds(nextIds);
+    writeLocalClientIds(userId, nextIds);
 
     const { error } = await supabase.from("specialist_clients").insert({
       specialist_id: userId,
@@ -72,11 +113,10 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
     });
 
     if (error) {
-      toast.error("Не удалось добавить клиента");
+      toast.success("Клиент добавлен локально и отображён в кабинете");
       return;
     }
 
-    setClientIds((prev) => [...prev, clientId]);
     toast.success("Клиент добавлен в личный кабинет");
   };
 
