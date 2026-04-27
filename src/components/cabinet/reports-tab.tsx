@@ -6,9 +6,12 @@ import {
   Clock3,
   Filter,
   Loader2,
+  Pencil,
   Plus,
   ReceiptText,
+  Save,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -79,8 +82,21 @@ function addDurations(values: string[]) {
   return `${hours}:${minutes}`;
 }
 
+function entriesEqual(a: ReportEntry, b: ReportEntry) {
+  return (
+    a.date === b.date &&
+    a.client === b.client &&
+    a.task === b.task &&
+    a.startTime === b.startTime &&
+    a.endTime === b.endTime &&
+    a.notes === b.notes
+  );
+}
+
 export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [entries, setEntries] = useState<ReportEntry[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, ReportEntry>>({});
+  const [editingIds, setEditingIds] = useState<string[]>([]);
   const [selectedClient, setSelectedClient] = useState("all");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [isLoading, setIsLoading] = useState(true);
@@ -151,7 +167,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [newEntryId, filteredEntriesLength(entries, selectedClient)]);
+  }, [newEntryId, entries.length, selectedClient]);
 
   const filteredEntries = useMemo(() => {
     const result = entries.filter((entry) => {
@@ -178,6 +194,38 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     return addDurations(durations);
   }, [entries, selectedDate]);
 
+  const startEditing = (entry: ReportEntry) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [entry.id]: { ...entry },
+    }));
+    setEditingIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
+  };
+
+  const cancelEditing = (entryId: string) => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+    setEditingIds((prev) => prev.filter((id) => id !== entryId));
+  };
+
+  const updateDraft = (entryId: string, key: keyof ReportEntry, value: string) => {
+    setDrafts((prev) => {
+      const currentDraft = prev[entryId];
+      if (!currentDraft) return prev;
+
+      return {
+        ...prev,
+        [entryId]: {
+          ...currentDraft,
+          [key]: value,
+        },
+      };
+    });
+  };
+
   const saveEntry = async (entry: ReportEntry) => {
     const { error } = await supabase
       .from("work_reports")
@@ -199,42 +247,29 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     return true;
   };
 
-  const updateEntry = async (id: string, key: keyof ReportEntry, value: string) => {
-    const nextEntries = entries.map((entry) =>
-      entry.id === id ? { ...entry, [key]: value } : entry
+  const handleSave = async (entryId: string) => {
+    const draft = drafts[entryId];
+    if (!draft) return;
+
+    setIsMutating(true);
+    const ok = await saveEntry(draft);
+    setIsMutating(false);
+
+    if (!ok) return;
+
+    setEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...draft,
+              task: draft.task.trim() || "Новая задача",
+            }
+          : entry
+      )
     );
 
-    setEntries(nextEntries);
-
-    const target = nextEntries.find((entry) => entry.id === id);
-    if (!target) return;
-
-    const ok = await saveEntry(target);
-    if (!ok) {
-      const { data } = await supabase
-        .from("work_reports")
-        .select("id, date, client_name, task, start_time, end_time, notes")
-        .eq("id", id)
-        .single();
-
-      if (data) {
-        setEntries((prev) =>
-          prev.map((entry) =>
-            entry.id === id
-              ? {
-                  id: data.id,
-                  date: data.date,
-                  client: data.client_name,
-                  task: data.task,
-                  startTime: data.start_time,
-                  endTime: data.end_time,
-                  notes: data.notes,
-                }
-              : entry
-          )
-        );
-      }
-    }
+    cancelEditing(entryId);
+    toast.success("Запись сохранена");
   };
 
   const removeEntry = async (id: string) => {
@@ -253,6 +288,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     }
 
     setEntries((prev) => prev.filter((entry) => entry.id !== id));
+    cancelEditing(id);
     toast.success("Запись удалена");
   };
 
@@ -288,18 +324,22 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       return;
     }
 
-    setEntries((prev) => [
-      {
-        id: data.id,
-        date: data.date,
-        client: data.client_name,
-        task: data.task,
-        startTime: data.start_time,
-        endTime: data.end_time,
-        notes: data.notes,
-      },
+    const newEntry = {
+      id: data.id,
+      date: data.date,
+      client: data.client_name,
+      task: data.task,
+      startTime: data.start_time,
+      endTime: data.end_time,
+      notes: data.notes,
+    };
+
+    setEntries((prev) => [newEntry, ...prev]);
+    setDrafts((prev) => ({
       ...prev,
-    ]);
+      [newEntry.id]: { ...newEntry },
+    }));
+    setEditingIds((prev) => [...prev, newEntry.id]);
     setNewEntryId(data.id);
 
     toast.success("Новая запись добавлена");
@@ -423,6 +463,9 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                   </tr>
                 ) : filteredEntries.map((entry) => {
                   const isNewEntry = entry.id === newEntryId;
+                  const isEditing = editingIds.includes(entry.id);
+                  const current = drafts[entry.id] ?? entry;
+                  const hasChanges = !entriesEqual(current, entry);
 
                   return (
                     <tr
@@ -433,16 +476,18 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       <td className="px-4 py-3">
                         <Input
                           type="date"
-                          value={entry.date}
-                          onChange={(event) => void updateEntry(entry.id, "date", event.target.value)}
-                          className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                          value={current.date}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "date", event.target.value)}
+                          className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white disabled:opacity-70"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <select
-                          value={entry.client}
-                          onChange={(event) => void updateEntry(entry.id, "client", event.target.value)}
-                          className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
+                          value={current.client}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "client", event.target.value)}
+                          className="h-11 w-full min-w-[180px] rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none disabled:opacity-70"
                         >
                           {clients.map((client) => (
                             <option key={client.id} value={client.name}>
@@ -453,50 +498,85 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                       </td>
                       <td className="px-4 py-3">
                         <textarea
-                          value={entry.task}
-                          onChange={(event) => void updateEntry(entry.id, "task", event.target.value)}
-                          className="min-h-[88px] w-full min-w-[280px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
+                          value={current.task}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "task", event.target.value)}
+                          className="min-h-[88px] w-full min-w-[280px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none disabled:opacity-70"
                           placeholder="Описание выполненной задачи"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <Input
                           type="time"
-                          value={entry.startTime}
-                          onChange={(event) => void updateEntry(entry.id, "startTime", event.target.value)}
-                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                          value={current.startTime}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "startTime", event.target.value)}
+                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white disabled:opacity-70"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <Input
                           type="time"
-                          value={entry.endTime}
-                          onChange={(event) => void updateEntry(entry.id, "endTime", event.target.value)}
-                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white"
+                          value={current.endTime}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "endTime", event.target.value)}
+                          className="h-11 min-w-[120px] rounded-2xl border-[#262626] bg-[#101010] text-white disabled:opacity-70"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex h-11 min-w-[110px] items-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 px-4 text-sm font-semibold text-[#34D399]">
-                          {durationBetween(entry.startTime, entry.endTime)}
+                          {durationBetween(current.startTime, current.endTime)}
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <textarea
-                          value={entry.notes}
-                          onChange={(event) => void updateEntry(entry.id, "notes", event.target.value)}
-                          className="min-h-[88px] w-full min-w-[260px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
+                          value={current.notes}
+                          disabled={!isEditing}
+                          onChange={(event) => updateDraft(entry.id, "notes", event.target.value)}
+                          className="min-h-[88px] w-full min-w-[260px] rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none disabled:opacity-70"
                           placeholder="Ссылки, графика, комментарии"
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => void removeEntry(entry.id)}
-                          disabled={isMutating}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:opacity-60"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Удалить
-                        </button>
+                        <div className="flex min-w-[180px] flex-col gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={() => void handleSave(entry.id)}
+                                disabled={isMutating || !hasChanges}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 text-sm font-medium text-[#34D399] transition-colors hover:bg-[#34D399]/20 disabled:opacity-50"
+                              >
+                                <Save className="h-4 w-4" />
+                                Сохранить
+                              </button>
+                              <button
+                                onClick={() => cancelEditing(entry.id)}
+                                disabled={isMutating}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 text-sm font-medium text-[#C9D1E1] transition-colors hover:bg-[#1B1B1B] disabled:opacity-50"
+                              >
+                                <X className="h-4 w-4" />
+                                Отменить
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => startEditing(entry)}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 text-sm font-medium text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Корректировать
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => void removeEntry(entry.id)}
+                            disabled={isMutating}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 text-sm font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:opacity-60"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Удалить
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -516,11 +596,4 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       </div>
     </div>
   );
-}
-
-function filteredEntriesLength(entries: ReportEntry[], selectedClient: string) {
-  return entries.filter((entry) => {
-    const matchesClient = selectedClient === "all" || entry.client === selectedClient;
-    return matchesClient;
-  }).length;
 }
