@@ -21,7 +21,7 @@ async function loadProfile(userId: string) {
     .from("profiles")
     .select("id, first_name, last_name, avatar_url, role, updated_at")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;
