@@ -2,19 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ClientSidebar } from "@/components/client-sidebar";
+import { DashboardNav } from "@/components/dashboard-nav";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
 import { MentorChatView } from "@/components/mentor-chat-view";
+import { PersonalCabinet } from "@/components/personal-cabinet";
 import { allClientsData, createClientData } from "@/lib/mock-data";
-import { Menu, Sparkles } from "lucide-react";
+import { useSpecialistClients } from "@/hooks/use-specialist-clients";
+import { Menu } from "lucide-react";
 
-type MainView = "mentor" | "clients";
+type MainView = "mentor" | "clients" | "cabinet";
 
 export default function Home() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("clients");
+  const { assignedClientIds, toggleClient } = useSpecialistClients();
 
   useEffect(() => {
     if (!selectedClientId && !selectedClientName) return;
@@ -39,6 +43,15 @@ export default function Home() {
     return null;
   }, [selectedClientId, selectedClientName]);
 
+  const allClients = useMemo(() => {
+    const demoClients = Object.values(allClientsData).map((item) => ({
+      id: item.client.id,
+      name: item.client.name,
+    }));
+
+    return demoClients;
+  }, []);
+
   const handleSelectClient = (id: string, name?: string) => {
     setSelectedClientId(id);
     setSelectedClientName(name ?? null);
@@ -48,6 +61,16 @@ export default function Home() {
 
   const handleOpenMentor = () => {
     setMainView("mentor");
+    setSidebarOpen(false);
+  };
+
+  const handleOpenClients = () => {
+    setMainView("clients");
+    setSidebarOpen(false);
+  };
+
+  const handleOpenCabinet = () => {
+    setMainView("cabinet");
     setSidebarOpen(false);
   };
 
@@ -69,39 +92,12 @@ export default function Home() {
         `}
       >
         <div className="flex h-full flex-col bg-[#111111] border-r border-[#1E1E1E]">
-          <div className="border-b border-[#1E1E1E] p-3">
-            <button
-              onClick={handleOpenMentor}
-              className={`w-full rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
-                mainView === "mentor"
-                  ? "border-[#A78BFA]/40 bg-[#A78BFA]/12 text-white"
-                  : "border-[#222222] bg-[#151515] text-[#C9D1E1] hover:border-[#A78BFA]/25 hover:bg-[#191919]"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
-                    mainView === "mentor"
-                      ? "border-[#A78BFA]/30 bg-[#A78BFA]/12 text-[#A78BFA]"
-                      : "border-[#2A2A2A] bg-[#1A1A1A] text-[#A78BFA]"
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">ИИ СММ наставник</p>
-                  <p className="text-[11px] text-[#8B93A7]">
-                    Чат с наставником по SMM
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-
           <div className="min-h-0 flex-1">
             <ClientSidebar
               selectedClientId={mainView === "clients" ? selectedClientId : null}
               onSelectClient={handleSelectClient}
+              assignedClientIds={assignedClientIds}
+              onToggleAssignClient={toggleClient}
             />
           </div>
         </div>
@@ -118,15 +114,30 @@ export default function Home() {
           <span className="text-sm font-semibold text-white">
             {mainView === "mentor"
               ? "ИИ СММ наставник"
+              : mainView === "cabinet"
+              ? "Личный кабинет"
               : selectedData
               ? selectedData.client.name
               : selectedClientName ?? "SMM Agency"}
           </span>
         </div>
 
+        <DashboardNav
+          mainView={mainView}
+          onClientsClick={handleOpenClients}
+          onMentorClick={handleOpenMentor}
+          onCabinetClick={handleOpenCabinet}
+        />
+
         <div className="flex-1 overflow-hidden">
           {mainView === "mentor" ? (
             <MentorChatView />
+          ) : mainView === "cabinet" ? (
+            <PersonalCabinet
+              assignedClientIds={assignedClientIds}
+              allClients={allClients}
+              onOpenClient={handleSelectClient}
+            />
           ) : selectedData ? (
             <ClientWorkspace data={selectedData} />
           ) : (

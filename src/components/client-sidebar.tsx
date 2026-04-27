@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, Zap, Loader2, AlertCircle, Database, CheckCircle2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Zap,
+  Loader2,
+  AlertCircle,
+  Database,
+  CheckCircle2,
+  UserPlus,
+  UserCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ClientSidebarProps {
   selectedClientId: string | null;
   onSelectClient: (id: string, name?: string) => void;
+  assignedClientIds: string[];
+  onToggleAssignClient: (id: string) => void;
 }
 
 type SupabaseClient = {
@@ -66,6 +78,8 @@ function getAvatarColor(name: string) {
 export function ClientSidebar({
   selectedClientId,
   onSelectClient,
+  assignedClientIds,
+  onToggleAssignClient,
 }: ClientSidebarProps) {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<ClientListItem[]>([]);
@@ -196,39 +210,58 @@ export function ClientSidebar({
           <ul className="space-y-0.5 px-2">
             {filtered.map((client) => {
               const isSelected = selectedClientId === client.id;
+              const isAssigned = assignedClientIds.includes(client.id);
+
               return (
                 <li key={client.id}>
-                  <button
-                    onClick={() => onSelectClient(client.id, client.name)}
+                  <div
                     className={`
-                      w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
-                      transition-all duration-200 group
-                      ${
-                        isSelected
-                          ? "bg-white text-black"
-                          : "text-[#D1D5DB] hover:bg-[#1A1A1A] hover:text-white"
-                      }
+                      flex items-center gap-2 px-2 py-1.5 rounded-xl
+                      transition-all duration-200
+                      ${isSelected ? "bg-white text-black" : "hover:bg-[#1A1A1A]"}
                     `}
                   >
-                    <ClientAvatar client={client} />
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-medium truncate leading-tight ${
-                          isSelected ? "text-black" : "text-white"
-                        }`}
-                      >
-                        {client.name}
-                      </p>
-                      <p
-                        className={`text-[10px] truncate leading-tight mt-0.5 ${
-                          isSelected ? "text-[#555]" : "text-[#6B7280]"
-                        }`}
-                      >
-                        {client.industry}
-                      </p>
-                    </div>
-                    <StatusDot status={client.status} />
-                  </button>
+                    <button
+                      onClick={() => onSelectClient(client.id, client.name)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <ClientAvatar client={client} />
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-medium truncate leading-tight ${
+                            isSelected ? "text-black" : "text-white"
+                          }`}
+                        >
+                          {client.name}
+                        </p>
+                        <p
+                          className={`text-[10px] truncate leading-tight mt-0.5 ${
+                            isSelected ? "text-[#555]" : "text-[#6B7280]"
+                          }`}
+                        >
+                          {client.industry}
+                        </p>
+                      </div>
+                      <StatusDot status={client.status} />
+                    </button>
+
+                    <button
+                      onClick={() => onToggleAssignClient(client.id)}
+                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border transition-all duration-200 ${
+                        isAssigned
+                          ? "border-[#34D399]/30 bg-[#34D399]/12 text-[#34D399]"
+                          : "border-[#2A2A2A] bg-[#171717] text-[#6B7280] hover:border-[#34D399]/30 hover:text-[#34D399]"
+                      }`}
+                      aria-label="Добавить клиента в личный кабинет"
+                      title="Добавить клиента в личный кабинет"
+                    >
+                      {isAssigned ? (
+                        <UserCheck className="h-4 w-4" />
+                      ) : (
+                        <UserPlus className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </li>
               );
             })}
