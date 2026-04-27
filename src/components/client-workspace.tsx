@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, FolderCheck, Linkedin, TrendingUp, BarChart3 } from "lucide-react";
+import {
+  Sparkles,
+  FolderCheck,
+  Linkedin,
+  TrendingUp,
+  BarChart3,
+  FileText,
+} from "lucide-react";
 import { ClientHeader } from "@/components/client-header";
 import { SmmChatTab } from "@/components/tabs/smm-chat-tab";
 import { SmmApprovedTab } from "@/components/tabs/smm-approved-tab";
 import { LinkedInTab } from "@/components/tabs/linkedin-tab";
 import { TrendwatcherTab } from "@/components/tabs/trendwatcher-tab";
 import { ControllerTab } from "@/components/tabs/controller-tab";
+import { ClientReportTab } from "@/components/tabs/client-report-tab";
 import type { AppRole } from "@/lib/auth";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -17,6 +25,7 @@ const tabs = [
   { id: "smm-approved", label: "ИИ СММ (утверждено)", icon: FolderCheck, color: "#FBBF24" },
   { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "#38BDF8" },
   { id: "controller", label: "Контроллер", icon: BarChart3, color: "#34D399" },
+  { id: "client-report", label: "Отчёт клиенту", icon: FileText, color: "#F472B6" },
 ];
 
 export function ClientWorkspace({
@@ -71,6 +80,9 @@ export function ClientWorkspace({
             userId={userId}
             role={role}
           />
+        )}
+        {activeTab === "client-report" && (
+          <ClientReportTab key={`client-report-${data.client.id}`} data={data} />
         )}
       </div>
     </div>
