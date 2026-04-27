@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, Zap, Loader2 } from "lucide-react";
+import { Search, Plus, Zap, Loader2, AlertCircle, Database, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -70,10 +70,13 @@ export function ClientSidebar({
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<ClientListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [rawCount, setRawCount] = useState(0);
 
   useEffect(() => {
     const fetchClients = async () => {
       setIsLoading(true);
+      setFetchError(null);
 
       const { data, error } = await supabase
         .from("clients")
@@ -81,13 +84,18 @@ export function ClientSidebar({
         .order("name", { ascending: true });
 
       if (error) {
-        toast.error("Не удалось загрузить клиентов");
         setClients([]);
+        setRawCount(0);
+        setFetchError(error.message);
+        toast.error("Не удалось загрузить клиентов");
         setIsLoading(false);
         return;
       }
 
-      const mappedClients: ClientListItem[] = (data ?? []).map((client: SupabaseClient) => ({
+      const rows = data ?? [];
+      setRawCount(rows.length);
+
+      const mappedClients: ClientListItem[] = rows.map((client: SupabaseClient) => ({
         id: client.id,
         name: client.name,
         industry: "Клиент",
@@ -143,6 +151,36 @@ export function ClientSidebar({
         </div>
       </div>
 
+      {!isLoading && (
+        <div className="px-4 py-3 border-b border-[#1E1E1E] bg-[#0F0F0F]">
+          <div className="rounded-2xl border border-[#1E1E1E] bg-[#151515] p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-white">
+              <Database className="w-3.5 h-3.5 text-[#38BDF8]" />
+              <span className="font-medium">Статус загрузки клиентов</span>
+            </div>
+
+            {fetchError ? (
+              <div className="flex items-start gap-2 text-xs text-[#FCA5A5]">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Ошибка Supabase</p>
+                  <p className="text-[#FECACA] break-words">{fetchError}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-xs text-[#86EFAC]">
+                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-white">Запрос выполнен</p>
+                  <p className="text-[#8B93A7]">Таблица clients вернула записей: {rawCount}</p>
+                  <p className="text-[#8B93A7]">После поиска показано: {filtered.length}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto py-2">
         <div className="px-3 py-2">
           <p className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider px-2 mb-1">
@@ -196,8 +234,13 @@ export function ClientSidebar({
             })}
           </ul>
         ) : (
-          <div className="px-5 py-8 text-center">
+          <div className="px-5 py-8 text-center space-y-2">
             <p className="text-sm text-[#6B7280]">Нет клиентов</p>
+            {!fetchError && (
+              <p className="text-xs text-[#8B93A7]">
+                Запрос к таблице clients выполнился, но вернул 0 записей.
+              </p>
+            )}
           </div>
         )}
       </div>
