@@ -56,6 +56,33 @@ function buildFallbackProfile(session: Session): UserProfile {
   };
 }
 
+async function ensureProfile(session: Session) {
+  const fallbackProfile = buildFallbackProfile(session);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: fallbackProfile.id,
+        first_name: fallbackProfile.first_name,
+        last_name: fallbackProfile.last_name,
+        avatar_url: fallbackProfile.avatar_url,
+        role: fallbackProfile.role,
+      },
+      {
+        onConflict: "id",
+      }
+    )
+    .select("id, first_name, last_name, avatar_url, role, updated_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -78,7 +105,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
 
       try {
-        const nextProfile = await loadProfile(nextSession.user.id);
+        let nextProfile = await loadProfile(nextSession.user.id);
+
+        if (!nextProfile) {
+          nextProfile = await ensureProfile(nextSession);
+        }
 
         if (!active) return;
 
