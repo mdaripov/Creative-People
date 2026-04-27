@@ -82,17 +82,6 @@ function addDurations(values: string[]) {
   return `${hours}:${minutes}`;
 }
 
-function entriesEqual(a: ReportEntry, b: ReportEntry) {
-  return (
-    a.date === b.date &&
-    a.client === b.client &&
-    a.task === b.task &&
-    a.startTime === b.startTime &&
-    a.endTime === b.endTime &&
-    a.notes === b.notes
-  );
-}
-
 export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [entries, setEntries] = useState<ReportEntry[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ReportEntry>>({});
@@ -465,7 +454,6 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                   const isNewEntry = entry.id === newEntryId;
                   const isEditing = editingIds.includes(entry.id);
                   const current = drafts[entry.id] ?? entry;
-                  const hasChanges = !entriesEqual(current, entry);
 
                   return (
                     <tr
@@ -543,7 +531,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                             <>
                               <button
                                 onClick={() => void handleSave(entry.id)}
-                                disabled={isMutating || !hasChanges}
+                                disabled={isMutating}
                                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 text-sm font-medium text-[#34D399] transition-colors hover:bg-[#34D399]/20 disabled:opacity-50"
                               >
                                 <Save className="h-4 w-4" />
