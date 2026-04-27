@@ -358,17 +358,17 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-[#1E1E1E] bg-[#141414] p-5 sm:p-6">
+    <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
       <div className="mb-5 flex items-start gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-2xl border"
-          style={{ background: `${accent}14`, borderColor: `${accent}28`, color: accent }}
+          style={{ background: `${accent}16`, borderColor: `${accent}32`, color: accent }}
         >
           {icon}
         </div>
         <div>
           <h4 className="text-base font-semibold text-white">{title}</h4>
-          <p className="mt-1 text-sm text-[#8B93A7]">{subtitle}</p>
+          <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">{subtitle}</p>
         </div>
       </div>
       {children}
@@ -385,11 +385,11 @@ function Pill({
 }) {
   return (
     <span
-      className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-medium"
+      className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold"
       style={{
         color: accent,
-        background: `${accent}12`,
-        borderColor: `${accent}26`,
+        background: `${accent}14`,
+        borderColor: `${accent}30`,
       }}
     >
       {label}
@@ -409,14 +409,14 @@ function InsightList({
       {items.map((item, index) => (
         <div
           key={`${item}-${index}`}
-          className="rounded-2xl border border-[#222222] bg-[#101010] p-4"
+          className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4"
         >
           <div className="flex items-start gap-3">
             <div
-              className="mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full"
+              className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
               style={{ backgroundColor: accent }}
             />
-            <p className="text-sm leading-relaxed text-[#D1D5DB]">{item}</p>
+            <p className="text-sm leading-7 text-[#F3F4F6]">{item}</p>
           </div>
         </div>
       ))}
@@ -432,23 +432,23 @@ function ScenarioCard({
   index: number;
 }) {
   return (
-    <div className="rounded-3xl border border-[#222222] bg-[#101010] p-5">
+    <div className="rounded-3xl border border-[#2A2A2A] bg-[#111111] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.015)]">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#6B7280]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9AA4B8]">
             Сценарий {index + 1}
           </p>
-          <h5 className="mt-1 text-base font-semibold text-white">
+          <h5 className="mt-1 text-base font-semibold leading-snug text-white">
             {scenario.title || `Сценарий ${index + 1}`}
           </h5>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#34D399]/20 bg-[#34D399]/10 text-[#34D399]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#34D399]/24 bg-[#34D399]/12 text-[#34D399]">
           <Lightbulb className="h-4 w-4" />
         </div>
       </div>
 
       {scenario.summary ? (
-        <p className="mb-4 text-sm leading-relaxed text-[#C9D1E1]">
+        <p className="mb-4 text-sm leading-7 text-[#E5E7EB]">
           {scenario.summary}
         </p>
       ) : null}
@@ -458,10 +458,10 @@ function ScenarioCard({
           {scenario.bullets.map((bullet, bulletIndex) => (
             <div
               key={`${scenario.title}-${bulletIndex}`}
-              className="flex items-start gap-2.5 rounded-2xl border border-[#1C1C1C] bg-[#151515] px-3 py-3"
+              className="flex items-start gap-2.5 rounded-2xl border border-[#242424] bg-[#181818] px-3 py-3"
             >
               <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#34D399]" />
-              <p className="text-sm leading-relaxed text-[#D1D5DB]">{bullet}</p>
+              <p className="text-sm leading-7 text-[#F3F4F6]">{bullet}</p>
             </div>
           ))}
         </div>
@@ -483,7 +483,7 @@ function ReportShowcase({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-5 sm:p-6">
+      <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -493,13 +493,13 @@ function ReportShowcase({
             <h3 className="text-xl font-semibold text-white">
               {report.client_name || report.client_id || "Отчёт по трендам"}
             </h3>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8B93A7]">
-              Красивое представление трендов, конкурентов и сценариев для выбранного клиента.
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#C5CEE0]">
+              Подборка сильных идей, конкурентных ориентиров и контент-сценариев для быстрого запуска в работу.
             </p>
           </div>
 
           {report.generated_at ? (
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-[#222222] bg-[#101010] px-4 py-2 text-xs text-[#8B93A7]">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#101010] px-4 py-2 text-xs font-medium text-[#C5CEE0]">
               <Calendar className="h-3.5 w-3.5" />
               {new Date(report.generated_at).toLocaleString("ru-RU")}
             </div>
@@ -510,34 +510,34 @@ function ReportShowcase({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <SectionCard
           title="Актуальные тренды"
-          subtitle="Что сейчас лучше всего цепляет внимание аудитории."
+          subtitle="Форматы и темы, которые сейчас лучше всего удерживают внимание."
           icon={<Flame className="h-5 w-5" />}
           accent="#A78BFA"
         >
           {trends.length > 0 ? (
             <InsightList items={trends} accent="#A78BFA" />
           ) : (
-            <p className="text-sm text-[#6B7280]">Тренды пока не найдены.</p>
+            <p className="text-sm text-[#B6C0D4]">Тренды пока не найдены.</p>
           )}
         </SectionCard>
 
         <SectionCard
           title="Конкуренты и ориентиры"
-          subtitle="Кого стоит отслеживать и какие идеи можно адаптировать."
+          subtitle="Полезные примеры, на которые можно опираться при планировании."
           icon={<Target className="h-5 w-5" />}
           accent="#38BDF8"
         >
           {competitors.length > 0 ? (
             <InsightList items={competitors} accent="#38BDF8" />
           ) : (
-            <p className="text-sm text-[#6B7280]">Конкуренты пока не найдены.</p>
+            <p className="text-sm text-[#B6C0D4]">Конкуренты пока не найдены.</p>
           )}
         </SectionCard>
       </div>
 
       <SectionCard
         title="Сценарии для контента"
-        subtitle="Готовые идеи и направления, которые можно брать в работу."
+        subtitle="Готовые идеи с понятной подачей, которые можно быстро адаптировать."
         icon={<Sparkles className="h-5 w-5" />}
         accent="#34D399"
       >
@@ -552,7 +552,7 @@ function ReportShowcase({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#6B7280]">Сценарии пока не найдены.</p>
+          <p className="text-sm text-[#B6C0D4]">Сценарии пока не найдены.</p>
         )}
       </SectionCard>
     </div>
@@ -614,18 +614,18 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-      <div className="rounded-[32px] border border-[#1E1E1E] bg-[#131720] p-6 sm:p-7">
+      <div className="rounded-[32px] border border-[#2A2A2A] bg-[#151A24] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#38BDF8]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/24 bg-[#38BDF8]/12 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
               <ClipboardList className="h-3.5 w-3.5" />
               ИИ Трендвотчер
             </div>
-            <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               Инсайты для {data.client.name}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#8B93A7] sm:text-base">
-              Подборка конкурентных идей, трендов и контент-сценариев в понятном и аккуратном формате.
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#D1D9E8] sm:text-base">
+              Подборка конкурентных идей, трендов и контент-сценариев в более чистом и читаемом формате.
             </p>
           </div>
 
@@ -637,7 +637,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-3xl border border-[#1E1E1E] bg-[#101010] p-4"
+                className="rounded-3xl border border-[#2A2A2A] bg-[#101010] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)]"
               >
                 <div
                   className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl"
@@ -649,7 +649,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
                   <TrendingUp className="h-4 w-4" style={{ color: item.color }} />
                 </div>
                 <p className="text-2xl font-bold text-white">{item.value}</p>
-                <p className="mt-1 text-xs text-[#8B93A7]">{item.label}</p>
+                <p className="mt-1 text-xs font-medium text-[#B6C0D4]">{item.label}</p>
               </div>
             ))}
           </div>
@@ -657,9 +657,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       </div>
 
       {isLoadingReports ? (
-        <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] py-20">
+        <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] py-20">
           <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-[#6B7280]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[#9AA4B8]" />
           </div>
         </div>
       ) : visibleReports.length > 0 ? (
@@ -673,9 +673,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           ))}
         </div>
       ) : (
-        <div className="rounded-[28px] border border-[#1E1E1E] bg-[#161616] p-10 text-center">
-          <ClipboardList className="mx-auto h-8 w-8 text-[#2A2A2A]" />
-          <p className="mt-3 text-sm text-[#6B7280]">Для этого клиента пока нет оформленных инсайтов.</p>
+        <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-10 text-center">
+          <ClipboardList className="mx-auto h-8 w-8 text-[#4B5563]" />
+          <p className="mt-3 text-sm text-[#C5CEE0]">Для этого клиента пока нет оформленных инсайтов.</p>
         </div>
       )}
     </div>
