@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { EmptyState } from "@/components/empty-state";
 import { ClientWorkspace } from "@/components/client-workspace";
@@ -16,15 +16,24 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainView, setMainView] = useState<MainView>("clients");
 
-  const selectedData = useMemo(() => {
-    if (!selectedClientId) return null;
+  useEffect(() => {
+    if (!selectedClientId && !selectedClientName) return;
 
-    if (selectedClientId in allClientsData) {
+    const clientStillInDemoSet = selectedClientId ? selectedClientId in allClientsData : false;
+    if (clientStillInDemoSet) return;
+
+    setSelectedClientId((prev) => prev);
+  }, [selectedClientId, selectedClientName]);
+
+  const selectedData = useMemo(() => {
+    if (!selectedClientId && !selectedClientName) return null;
+
+    if (selectedClientId && selectedClientId in allClientsData) {
       return allClientsData[selectedClientId as keyof typeof allClientsData];
     }
 
     if (selectedClientName) {
-      return createClientData(selectedClientId, selectedClientName);
+      return createClientData(selectedClientId ?? selectedClientName, selectedClientName);
     }
 
     return null;
@@ -111,7 +120,7 @@ export default function Home() {
               ? "ИИ СММ наставник"
               : selectedData
               ? selectedData.client.name
-              : "SMM Agency"}
+              : selectedClientName ?? "SMM Agency"}
           </span>
         </div>
 
