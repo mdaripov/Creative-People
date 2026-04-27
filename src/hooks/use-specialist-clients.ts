@@ -44,8 +44,6 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
       return;
     }
 
-    const localClientIds = readLocalClientIds(userId);
-
     const loadAssignments = async () => {
       setLoading(true);
 
@@ -55,7 +53,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         return;
       }
 
-      setClientIds(localClientIds);
+      const localClientIds = readLocalClientIds(userId);
 
       const { data, error } = await supabase
         .from("specialist_clients")
@@ -63,6 +61,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         .eq("specialist_id", userId);
 
       if (error) {
+        setClientIds(localClientIds);
         setLoading(false);
         return;
       }
@@ -95,7 +94,7 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
         .eq("client_id", clientId);
 
       if (error) {
-        toast.success("Клиент убран из кабинета только локально");
+        toast.error("Не удалось удалить клиента из Supabase. Изменение сохранено локально.");
         return;
       }
 
@@ -107,13 +106,20 @@ export function useSpecialistClients(userId: string | null, role: AppRole | null
     setClientIds(nextIds);
     writeLocalClientIds(userId, nextIds);
 
-    const { error } = await supabase.from("specialist_clients").insert({
-      specialist_id: userId,
-      client_id: clientId,
-    });
+    const { error } = await supabase
+      .from("specialist_clients")
+      .upsert(
+        {
+          specialist_id: userId,
+          client_id: clientId,
+        },
+        {
+          onConflict: "specialist_id,client_id",
+        }
+      );
 
     if (error) {
-      toast.success("Клиент добавлен локально и отображён в кабинете");
+      toast.error("Не удалось сохранить клиента в Supabase. Клиент добавлен только локально.");
       return;
     }
 

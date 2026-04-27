@@ -120,7 +120,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
       let query = supabase
         .from("work_reports")
-        .select("id, date, client_name, task, start_time, end_time, notes")
+        .select("id, date, client_name, task, start_time, end_time, notes, specialist_id")
         .order("date", { ascending: false })
         .order("start_time", { ascending: false });
 
@@ -135,7 +135,6 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
         setEntries(localEntries);
         setIsLocalMode(true);
         setIsLoading(false);
-        toast.success("Отчёты работают в локальном режиме");
         return;
       }
 
@@ -185,26 +184,24 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       return;
     }
 
-    const target = entries.find((entry) => entry.id === id);
+    const target = nextEntries.find((entry) => entry.id === id);
     if (!target) return;
-
-    const nextEntry = { ...target, [key]: value };
 
     const { error } = await supabase
       .from("work_reports")
       .update({
-        date: nextEntry.date,
-        client_name: nextEntry.client,
-        task: nextEntry.task,
-        start_time: nextEntry.startTime,
-        end_time: nextEntry.endTime,
-        notes: nextEntry.notes,
+        date: target.date,
+        client_name: target.client,
+        task: target.task || "Без названия задачи",
+        start_time: target.startTime,
+        end_time: target.endTime,
+        notes: target.notes,
       })
       .eq("id", id);
 
     if (error) {
       setIsLocalMode(true);
-      toast.success("Изменения сохранены локально");
+      toast.error("Не удалось обновить запись в Supabase. Изменения сохранены локально.");
     }
   };
 
@@ -225,7 +222,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
     if (error) {
       setIsLocalMode(true);
-      toast.success("Запись удалена локально");
+      toast.error("Не удалось удалить запись из Supabase. Удаление выполнено локально.");
       return;
     }
 
@@ -233,58 +230,47 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   };
 
   const addEntry = async () => {
-    const fallbackClient = clients[0]?.name ?? "";
+    const fallbackClient =
+      selectedClient !== "all" ? selectedClient : clients[0]?.name ?? "Новый клиент";
 
-    if (isLocalMode) {
-      const newEntry: ReportEntry = {
-        id: `local-${Date.now()}`,
-        date: selectedDate,
-        client: selectedClient !== "all" ? selectedClient : fallbackClient,
-        task: "",
-        startTime: "09:00",
-        endTime: "10:00",
-        notes: "",
-      };
-
-      const nextEntries = [newEntry, ...entries];
-      setEntries(nextEntries);
-      writeLocalReports(userId, nextEntries);
-      toast.success("Новая запись добавлена");
-      return;
-    }
-
-    const payload = {
-      specialist_id: userId,
+    const optimisticEntry: ReportEntry = {
+      id: `local-${Date.now()}`,
       date: selectedDate,
-      client_name: selectedClient !== "all" ? selectedClient : fallbackClient,
+      client: fallbackClient,
       task: "",
-      start_time: "09:00",
-      end_time: "10:00",
+      startTime: "09:00",
+      endTime: "10:00",
       notes: "",
     };
 
+    if (isLocalMode) {
+      const nextEntries = [optimisticEntry, ...entries];
+      setEntries(nextEntries);
+      writeLocalReports(userId, nextEntries);
+      toast.success("Новая запись добавлена локально");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("work_reports")
-      .insert(payload)
+      .insert({
+        specialist_id: userId,
+        date: selectedDate,
+        client_name: fallbackClient,
+        task: "Новая задача",
+        start_time: "09:00",
+        end_time: "10:00",
+        notes: "",
+      })
       .select("id, date, client_name, task, start_time, end_time, notes")
       .single();
 
-    if (error) {
-      const newEntry: ReportEntry = {
-        id: `local-${Date.now()}`,
-        date: selectedDate,
-        client: payload.client_name,
-        task: "",
-        startTime: "09:00",
-        endTime: "10:00",
-        notes: "",
-      };
-
-      const nextEntries = [newEntry, ...entries];
+    if (error || !data) {
+      const nextEntries = [optimisticEntry, ...entries];
       setEntries(nextEntries);
       writeLocalReports(userId, nextEntries);
       setIsLocalMode(true);
-      toast.success("Запись добавлена локально");
+      toast.error("Не удалось добавить запись в Supabase. Запись сохранена локально.");
       return;
     }
 
@@ -303,6 +289,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
     setEntries(nextEntries);
     writeLocalReports(userId, nextEntries);
+    setIsLocalMode(false);
     toast.success("Новая запись добавлена");
   };
 
