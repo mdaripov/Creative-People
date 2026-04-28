@@ -9,7 +9,6 @@ import { FilterBar } from "@/components/trendwatcher/filter-bar";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
-import { SectionAnchorNav } from "@/components/trendwatcher/section-anchor-nav";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
 import {
@@ -298,6 +297,12 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   return (
     <div className="animate-fade-in h-full overflow-y-auto bg-[#0D121A]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
+        <ReportSwitcher
+          reports={normalizedReports}
+          selectedReportId={activeReport.id}
+          onSelectReport={setSelectedReportId}
+        />
+
         <FilterBar
           platforms={platformOptions}
           selectedPlatform={selectedPlatform}
@@ -312,22 +317,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           onReset={handleResetFilters}
         />
 
-        <SectionAnchorNav
-          items={[
-            { id: "priority-trends", label: "Тренды", count: filteredTrends.length },
-            { id: "ready-scenarios", label: "Сценарии", count: filteredScenarios.length },
-            { id: "competitors", label: "Конкуренты", count: filteredCompetitors.length },
-            { id: "analysis", label: "Анализ" },
-          ]}
-        />
-
         <ReportSummary report={activeReport} />
-
-        <ReportSwitcher
-          reports={normalizedReports}
-          selectedReportId={activeReport.id}
-          onSelectReport={setSelectedReportId}
-        />
 
         {filteredTrends.length === 0 &&
         filteredScenarios.length === 0 &&
@@ -355,22 +345,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
               </SectionShell>
             ) : null}
 
-            {readyScenarios.length > 0 ? (
-              <SectionShell
-                id="ready-scenarios"
-                title="Сценарии, готовые к тесту"
-                subtitle="Production-ready блоки, которые уже ближе всего к передаче в работу команде."
-                icon={<Zap className="h-5 w-5" />}
-                accent="#34D399"
-              >
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {readyScenarios.map((item) => (
-                    <ScenarioCard key={item.id} item={item} viewMode={viewMode} featured />
-                  ))}
-                </div>
-              </SectionShell>
-            ) : null}
-
             {filteredCompetitors.length > 0 ? (
               <SectionShell
                 id="competitors"
@@ -382,6 +356,22 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
                 <div className="grid gap-4 xl:grid-cols-2">
                   {filteredCompetitors.map((item) => (
                     <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
+                  ))}
+                </div>
+              </SectionShell>
+            ) : null}
+
+            {readyScenarios.length > 0 ? (
+              <SectionShell
+                id="ready-scenarios"
+                title="Сценарии, готовые к тесту"
+                subtitle="Production-ready блоки, которые уже ближе всего к передаче в работу команде."
+                icon={<Zap className="h-5 w-5" />}
+                accent="#34D399"
+              >
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {readyScenarios.map((item) => (
+                    <ScenarioCard key={item.id} item={item} viewMode={viewMode} featured />
                   ))}
                 </div>
               </SectionShell>
