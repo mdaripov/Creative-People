@@ -40,9 +40,16 @@ const statusConfig = {
   },
 };
 
+function isMeaningfulValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return Boolean(normalized) && normalized !== "все платформы" && normalized !== "не указан";
+}
+
 export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardProps) {
   const status = statusConfig[item.status];
   const StatusIcon = status.icon;
+  const showPlatform = isMeaningfulValue(item.platform);
+  const showFormat = isMeaningfulValue(item.format);
 
   return (
     <div
@@ -53,14 +60,20 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
-              {item.platform}
-            </span>
-            <span className="rounded-full border border-[#253041] bg-[#101620] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
-              {item.format}
-            </span>
-          </div>
+          {(showPlatform || showFormat) && (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {showPlatform ? (
+                <span className="rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
+                  {item.platform}
+                </span>
+              ) : null}
+              {showFormat ? (
+                <span className="rounded-full border border-[#253041] bg-[#101620] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
+                  {item.format}
+                </span>
+              ) : null}
+            </div>
+          )}
           <h4 className="text-base font-semibold text-white sm:text-lg">{item.title}</h4>
         </div>
 
