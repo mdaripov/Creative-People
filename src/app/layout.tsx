@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SMM Agency Dashboard",
-  description: "Client-centric SMM management platform",
+  title: "AI SMM Workspace",
+  description: "AI-powered SMM workspace for specialists, managers, reports and client control",
 };
 
 export default function RootLayout({
