@@ -203,13 +203,32 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       const { data: reportsData } = await supabase
         .from("reports")
-        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
+        .select("id, client_id, client_name, generated_at, status, analysis, scenarios")
         .order("generated_at", { ascending: false });
 
       if (!isMounted) return;
 
-      const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
-      const mergedReports = dedupeReports(supabaseRows);
+      const normalizedRows: ReportRecord[] = ((reportsData as Array<{
+        id: string;
+        client_id: string | null;
+        client_name: string | null;
+        generated_at: string | null;
+        status: string | null;
+        analysis: unknown;
+        scenarios: unknown;
+      }> | null) ?? []).map((report) => ({
+        id: report.id,
+        client_id: report.client_id,
+        client_name: report.client_name,
+        generated_at: report.generated_at,
+        status: report.status,
+        analysis: report.analysis,
+        scenarios: report.scenarios,
+        competitors: null,
+        trends: null,
+      }));
+
+      const mergedReports = dedupeReports(normalizedRows);
       const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
       setReports(mergedReports);
