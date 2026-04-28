@@ -114,6 +114,83 @@ function SectionShell({
   );
 }
 
+function ReportsDebugPanel({
+  clientName,
+  clientId,
+  reports,
+  matchedCount,
+  fallbackEnabled,
+}: {
+  clientName: string;
+  clientId: string;
+  reports: ReportRecord[];
+  matchedCount: number;
+  fallbackEnabled: boolean;
+}) {
+  return (
+    <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
+          <Database className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
+          <p className="text-xs text-[#8B93A7]">
+            Всего загружено: {reports.length} · Совпало для клиента: {matchedCount}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+            Выбранный клиент
+          </p>
+          <p className="mt-2 text-sm text-white">name: {clientName}</p>
+          <p className="mt-1 text-sm text-[#B6C0D4]">id: {clientId}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+            Режим показа
+          </p>
+          <p className="mt-2 text-sm text-white">
+            {fallbackEnabled ? "Включён fallback-показ отчётов" : "Показ только совпавших отчётов"}
+          </p>
+          <p className="mt-1 text-sm text-[#B6C0D4]">
+            Если совпадений нет, но в базе мало записей, они всё равно показываются для проверки.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          Что реально пришло из reports
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {reports.map((report) => (
+            <div
+              key={report.id}
+              className="rounded-2xl border border-[#242424] bg-[#151515] px-3 py-3"
+            >
+              <p className="text-sm font-medium text-white">
+                {report.client_name || "Без client_name"}
+              </p>
+              <p className="mt-1 text-xs text-[#8B93A7]">
+                client_id: {report.client_id || "—"}
+              </p>
+              <p className="mt-1 text-xs text-[#8B93A7]">
+                generated_at: {report.generated_at || "—"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function EmptyReportState({
   clientName,
   matchedCount,
@@ -185,9 +262,17 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     };
   }, [data.client.id, data.client.name]);
 
+  const effectiveReports = useMemo(() => {
+    if (matchedReports.length > 0) return matchedReports;
+    if (reports.length > 0 && reports.length <= 10) return reports;
+    return matchedReports;
+  }, [matchedReports, reports]);
+
+  const fallbackEnabled = matchedReports.length === 0 && effectiveReports.length > 0;
+
   const normalizedReports = useMemo(() => {
-    return matchedReports.map((report) => normalizeReport(report, "Данные из reports"));
-  }, [matchedReports]);
+    return effectiveReports.map((report) => normalizeReport(report, "Данные из reports"));
+  }, [effectiveReports]);
 
   useEffect(() => {
     if (!normalizedReports.length) {
@@ -254,19 +339,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
-          <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
-              <Database className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
-              <p className="text-xs text-[#8B93A7]">
-                Всего загружено: {reports.length} · Совпало для клиента: {matchedReports.length}
-              </p>
-            </div>
-          </div>
-        </section>
+        <ReportsDebugPanel
+          clientName={data.client.name}
+          clientId={data.client.id}
+          reports={reports}
+          matchedCount={matchedReports.length}
+          fallbackEnabled={fallbackEnabled}
+        />
 
         <EmptyReportState
           clientName={data.client.name}
@@ -279,19 +358,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-      <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
-        <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
-            <Database className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
-            <p className="text-xs text-[#8B93A7]">
-              Всего загружено: {reports.length} · Совпало для клиента: {matchedReports.length}
-            </p>
-          </div>
-        </div>
-      </section>
+      <ReportsDebugPanel
+        clientName={data.client.name}
+        clientId={data.client.id}
+        reports={reports}
+        matchedCount={matchedReports.length}
+        fallbackEnabled={fallbackEnabled}
+      />
 
       <ReportSummary report={activeReport} />
 
