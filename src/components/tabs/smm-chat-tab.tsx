@@ -124,9 +124,9 @@ export function SmmChatTab({
             <button
               key={prompt}
               onClick={() => handleSend(prompt)}
-              className="rounded-xl border border-[#222222] bg-[#141414] px-3 py-2 text-left text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white"
+              className="inline-flex max-w-full items-center rounded-2xl border border-[#222222] bg-[#141414] px-3 py-2 text-left text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white sm:text-sm"
             >
-              {prompt}
+              <span className="break-words">{prompt}</span>
             </button>
           ))}
         </div>
@@ -216,7 +216,7 @@ export function SmmChatTab({
             <button
               onClick={() => handleSend(input)}
               disabled={isLoading}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 text-[#A78BFA] transition-all duration-200 hover:bg-[#A78BFA]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 text-[#A78BFA] transition-all duration-200 hover:bg-[#A78BFA]/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Send className="h-4 w-4" />
             </button>
