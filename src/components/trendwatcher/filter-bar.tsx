@@ -82,114 +82,112 @@ export function FilterBar({
   onReset,
 }: FilterBarProps) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-[#202938]/80 bg-[#0D121A]/88 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6">
-      <div className="rounded-[20px] border border-[#202A39] bg-[#111722]/92 px-3 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:px-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-[#A78BFA]" />
-                <h3 className="text-sm font-semibold text-white">Управление просмотром</h3>
-              </div>
-              <p className="mt-1 text-[11px] text-[#7F8CA3]">
-                Компактные фильтры для быстрого просмотра отчёта.
-              </p>
+    <div className="rounded-[20px] border border-[#202A39] bg-[#111722] px-3 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:px-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-[#A78BFA]" />
+              <h3 className="text-sm font-semibold text-white">Управление просмотром</h3>
             </div>
+            <p className="mt-1 text-[11px] text-[#7F8CA3]">
+              Быстрые фильтры для просмотра отчёта.
+            </p>
+          </div>
 
-            <div className="inline-flex w-full rounded-full border border-[#263245] bg-[#0F141C] p-1 xl:w-auto">
-              <button
-                onClick={() => onViewModeChange("overview")}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
-                style={{
-                  color: viewMode === "overview" ? "#FFFFFF" : "#B8C2D6",
-                  background: viewMode === "overview" ? "#A78BFA" : "transparent",
-                }}
-              >
-                <PanelTop className="h-3.5 w-3.5" />
-                Обзор
-              </button>
-              <button
-                onClick={() => onViewModeChange("detailed")}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
-                style={{
-                  color: viewMode === "detailed" ? "#FFFFFF" : "#B8C2D6",
-                  background: viewMode === "detailed" ? "#38BDF8" : "transparent",
-                }}
-              >
-                <Eye className="h-3.5 w-3.5" />
-                Детально
-              </button>
+          <div className="inline-flex w-full rounded-full border border-[#263245] bg-[#0F141C] p-1 xl:w-auto">
+            <button
+              onClick={() => onViewModeChange("overview")}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
+              style={{
+                color: viewMode === "overview" ? "#FFFFFF" : "#B8C2D6",
+                background: viewMode === "overview" ? "#A78BFA" : "transparent",
+              }}
+            >
+              <PanelTop className="h-3.5 w-3.5" />
+              Обзор
+            </button>
+            <button
+              onClick={() => onViewModeChange("detailed")}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
+              style={{
+                color: viewMode === "detailed" ? "#FFFFFF" : "#B8C2D6",
+                background: viewMode === "detailed" ? "#38BDF8" : "transparent",
+              }}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Детально
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
+              <Rows3 className="h-3.5 w-3.5 text-[#38BDF8]" />
+              Тип
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {types.map((type) => (
+                <ChipButton
+                  key={type.value}
+                  active={type.value === selectedType}
+                  label={type.label}
+                  color="#1E40AF"
+                  onClick={() => onTypeChange(type.value)}
+                />
+              ))}
             </div>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
-            <div className="min-w-0">
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
-                <Rows3 className="h-3.5 w-3.5 text-[#38BDF8]" />
-                Тип
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {types.map((type) => (
-                  <ChipButton
-                    key={type.value}
-                    active={type.value === selectedType}
-                    label={type.label}
-                    color="#1E40AF"
-                    onClick={() => onTypeChange(type.value)}
-                  />
-                ))}
-              </div>
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
+              <ListFilter className="h-3.5 w-3.5 text-[#A78BFA]" />
+              Платформа
             </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {platforms.map((platform) => (
+                <ChipButton
+                  key={platform}
+                  active={platform === selectedPlatform}
+                  label={platform}
+                  color="#6D28D9"
+                  onClick={() => onPlatformChange(platform)}
+                />
+              ))}
+            </div>
+          </div>
 
-            <div className="min-w-0">
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
-                <ListFilter className="h-3.5 w-3.5 text-[#A78BFA]" />
-                Платформа
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {platforms.map((platform) => (
-                  <ChipButton
-                    key={platform}
-                    active={platform === selectedPlatform}
-                    label={platform}
-                    color="#6D28D9"
-                    onClick={() => onPlatformChange(platform)}
-                  />
-                ))}
-              </div>
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
+              <ListFilter className="h-3.5 w-3.5 text-[#34D399]" />
+              Приоритет
             </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {priorities.map((priority) => (
+                <ChipButton
+                  key={priority.value}
+                  active={priority.value === selectedPriority}
+                  label={priority.label}
+                  color="#047857"
+                  onClick={() => onPriorityChange(priority.value)}
+                />
+              ))}
+            </div>
+          </div>
 
-            <div className="min-w-0">
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
-                <ListFilter className="h-3.5 w-3.5 text-[#34D399]" />
-                Приоритет
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {priorities.map((priority) => (
-                  <ChipButton
-                    key={priority.value}
-                    active={priority.value === selectedPriority}
-                    label={priority.label}
-                    color="#047857"
-                    onClick={() => onPriorityChange(priority.value)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-end">
-              {hasActiveFilters ? (
-                <button
-                  onClick={onReset}
-                  className="inline-flex h-10 items-center gap-2 rounded-full border border-[#263245] bg-[#0F141C] px-4 text-xs font-semibold text-[#D1D9E8] transition-colors hover:bg-[#151C28]"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 text-[#FBBF24]" />
-                  Сбросить
-                </button>
-              ) : (
-                <div className="h-10" />
-              )}
-            </div>
+          <div className="flex items-end">
+            {hasActiveFilters ? (
+              <button
+                onClick={onReset}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-[#263245] bg-[#0F141C] px-4 text-xs font-semibold text-[#D1D9E8] transition-colors hover:bg-[#151C28]"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-[#FBBF24]" />
+                Сбросить
+              </button>
+            ) : (
+              <div className="h-10" />
+            )}
           </div>
         </div>
       </div>
