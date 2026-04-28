@@ -34,6 +34,74 @@ function dedupeReports(reports: ReportRecord[]) {
   return Array.from(map.values());
 }
 
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
+  const normalizedClientId = normalizeValue(clientId);
+  const normalizedClientName = normalizeValue(clientName);
+
+  const exactIdMatches = reports.filter(
+    (report) => normalizeValue(report.client_id) === normalizedClientId
+  );
+
+  if (exactIdMatches.length > 0) {
+    return exactIdMatches.sort((a, b) =>
+      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+    );
+  }
+
+  const exactNameMatches = reports.filter(
+    (report) => normalizeValue(report.client_name) === normalizedClientName
+  );
+
+  if (exactNameMatches.length > 0) {
+    return exactNameMatches.sort((a, b) =>
+      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+    );
+  }
+
+  const partialMatches = reports.filter((report) => {
+    const reportClientId = normalizeValue(report.client_id);
+    const reportClientName = normalizeValue(report.client_name);
+
+    return (
+      reportClientId.includes(normalizedClientId) ||
+      normalizedClientId.includes(reportClientId) ||
+      reportClientName.includes(normalizedClientName) ||
+      normalizedClientName.includes(reportClientName)
+    );
+  });
+
+  if (partialMatches.length > 0) {
+    return partialMatches.sort((a, b) =>
+      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+    );
+  }
+
+  const scoredReports = reports
+    .map((report) => ({
+      report,
+      score: getMatchScore(report, clientName, clientId),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.report.generated_at ?? "").localeCompare(a.report.generated_at ?? "");
+    });
+
+  if (scoredReports.length === 0) {
+    return [];
+  }
+
+  const bestScore = scoredReports[0].score;
+
+  return scoredReports
+    .filter((item) => item.score >= Math.max(bestScore - 20, 50))
+    .map((item) => item.report);
+}
+
 function SectionShell({
   id,
   title,
@@ -146,29 +214,6 @@ function EmptyReportState({ clientName }: { clientName: string }) {
       </section>
     </div>
   );
-}
-
-function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
-  const scoredReports = reports
-    .map((report) => ({
-      report,
-      score: getMatchScore(report, clientName, clientId),
-    }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.report.generated_at ?? "").localeCompare(a.report.generated_at ?? "");
-    });
-
-  if (scoredReports.length === 0) {
-    return [];
-  }
-
-  const bestScore = scoredReports[0].score;
-
-  return scoredReports
-    .filter((item) => item.score >= Math.max(bestScore - 20, 50))
-    .map((item) => item.report);
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
