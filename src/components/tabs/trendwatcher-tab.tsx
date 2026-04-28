@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
@@ -17,6 +16,7 @@ import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
+import reportRows from "@/lib/reports_rows.json";
 import { normalizeReport, type ReportRecord, type TrendPriority, type ViewMode } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -43,19 +43,32 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
   const normalizedClientName = normalizeValue(clientName);
   const normalizedClientId = normalizeValue(clientId);
 
-  const matched = reports.filter((report) => {
+  const exactMatches = reports.filter((report) => {
+    const reportName = normalizeValue(report.client_name);
+    const reportId = normalizeValue(report.client_id);
+
+    return reportName === normalizedClientName || reportId === normalizedClientId;
+  });
+
+  if (exactMatches.length > 0) {
+    return exactMatches.sort((a, b) =>
+      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+    );
+  }
+
+  const partialMatches = reports.filter((report) => {
     const reportName = normalizeValue(report.client_name);
     const reportId = normalizeValue(report.client_id);
 
     return (
-      reportName === normalizedClientName ||
-      reportId === normalizedClientId ||
       (reportName && normalizedClientName && reportName.includes(normalizedClientName)) ||
-      (reportId && normalizedClientId && reportId.includes(normalizedClientId))
+      (reportId && normalizedClientId && reportId.includes(normalizedClientId)) ||
+      (reportName && normalizedClientName && normalizedClientName.includes(reportName)) ||
+      (reportId && normalizedClientId && normalizedClientId.includes(reportId))
     );
   });
 
-  return matched.sort((a, b) =>
+  return partialMatches.sort((a, b) =>
     (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
   );
 }
@@ -164,7 +177,7 @@ function EmptyReportState({ clientName }: { clientName: string }) {
         <div>
           <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
-            Для клиента {clientName} в таблице reports сейчас нет подходящей записи.
+            Для клиента {clientName} не удалось найти подходящую запись отчёта.
           </p>
         </div>
       </div>
@@ -182,30 +195,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [viewMode] = useState<ViewMode>("overview");
 
   useEffect(() => {
-    let isMounted = true;
+    setIsLoadingReports(true);
 
-    const fetchReports = async () => {
-      setIsLoadingReports(true);
+    const reports = dedupeReports(reportRows as ReportRecord[]);
+    const nextReports = getClientReports(reports, data.client.name, data.client.id);
 
-      const { data: reportsData } = await supabase
-        .from("reports")
-        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
-        .order("generated_at", { ascending: false });
-
-      if (!isMounted) return;
-
-      const reports = dedupeReports((reportsData as ReportRecord[] | null) ?? []);
-      const nextReports = getClientReports(reports, data.client.name, data.client.id);
-
-      setMatchedReports(nextReports);
-      setIsLoadingReports(false);
-    };
-
-    void fetchReports();
-
-    return () => {
-      isMounted = false;
-    };
+    setMatchedReports(nextReports);
+    setIsLoadingReports(false);
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
