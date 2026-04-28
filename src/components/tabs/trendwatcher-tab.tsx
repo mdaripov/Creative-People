@@ -19,7 +19,6 @@ import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import {
-  getMatchScore,
   getPlatformOptions,
   normalizeReport,
   type ReportRecord,
@@ -41,8 +40,8 @@ function dedupeReports(reports: ReportRecord[]) {
   return Array.from(map.values());
 }
 
-function normalizeLoose(value: string) {
-  return value
+function normalizeLoose(value: string | null | undefined) {
+  return (value ?? "")
     .trim()
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -55,31 +54,31 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
   const normalizedClientName = normalizeLoose(clientName);
   const normalizedClientId = normalizeLoose(clientId);
 
-  return reports
-    .map((report) => {
-      const score = getMatchScore(report, clientName, clientId);
-      const reportClientName = normalizeLoose(report.client_name ?? "");
-      const reportClientId = normalizeLoose(report.client_id ?? "");
+  const exactMatches = reports.filter((report) => {
+    return report.client_id === clientId || report.client_name === clientName;
+  });
 
-      const fallbackMatch =
-        reportClientName.includes(normalizedClientName) ||
-        normalizedClientName.includes(reportClientName) ||
-        reportClientId.includes(normalizedClientId) ||
-        normalizedClientId.includes(reportClientId) ||
-        reportClientId.includes(normalizedClientName) ||
-        reportClientName.includes(normalizedClientId);
+  if (exactMatches.length > 0) {
+    return exactMatches.sort((a, b) =>
+      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+    );
+  }
 
-      return {
-        report,
-        score: score > 0 ? score : fallbackMatch ? 40 : 0,
-      };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.report.generated_at ?? "").localeCompare(a.report.generated_at ?? "");
-    })
-    .map((item) => item.report);
+  const normalizedMatches = reports.filter((report) => {
+    const reportClientName = normalizeLoose(report.client_name);
+    const reportClientId = normalizeLoose(report.client_id);
+
+    return (
+      reportClientId === normalizedClientId ||
+      reportClientName === normalizedClientName ||
+      reportClientId === normalizedClientName ||
+      reportClientName === normalizedClientId
+    );
+  });
+
+  return normalizedMatches.sort((a, b) =>
+    (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+  );
 }
 
 function SectionShell({
@@ -119,13 +118,11 @@ function ReportsDebugPanel({
   clientId,
   reports,
   matchedCount,
-  fallbackEnabled,
 }: {
   clientName: string;
   clientId: string;
   reports: ReportRecord[];
   matchedCount: number;
-  fallbackEnabled: boolean;
 }) {
   return (
     <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
@@ -152,39 +149,23 @@ function ReportsDebugPanel({
 
         <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
-            Режим показа
+            Записи из reports
           </p>
-          <p className="mt-2 text-sm text-white">
-            {fallbackEnabled ? "Включён fallback-показ отчётов" : "Показ только совпавших отчётов"}
-          </p>
-          <p className="mt-1 text-sm text-[#B6C0D4]">
-            Если совпадений нет, но в базе мало записей, они всё равно показываются для проверки.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
-          Что реально пришло из reports
-        </p>
-
-        <div className="mt-3 space-y-2">
-          {reports.map((report) => (
-            <div
-              key={report.id}
-              className="rounded-2xl border border-[#242424] bg-[#151515] px-3 py-3"
-            >
-              <p className="text-sm font-medium text-white">
-                {report.client_name || "Без client_name"}
-              </p>
-              <p className="mt-1 text-xs text-[#8B93A7]">
-                client_id: {report.client_id || "—"}
-              </p>
-              <p className="mt-1 text-xs text-[#8B93A7]">
-                generated_at: {report.generated_at || "—"}
-              </p>
-            </div>
-          ))}
+          <div className="mt-2 space-y-2">
+            {reports.map((report) => (
+              <div
+                key={report.id}
+                className="rounded-2xl border border-[#242424] bg-[#151515] px-3 py-3"
+              >
+                <p className="text-sm font-medium text-white">
+                  {report.client_name || "Без client_name"}
+                </p>
+                <p className="mt-1 text-xs text-[#8B93A7]">
+                  client_id: {report.client_id || "—"}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -262,17 +243,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     };
   }, [data.client.id, data.client.name]);
 
-  const effectiveReports = useMemo(() => {
-    if (matchedReports.length > 0) return matchedReports;
-    if (reports.length > 0 && reports.length <= 10) return reports;
-    return matchedReports;
-  }, [matchedReports, reports]);
-
-  const fallbackEnabled = matchedReports.length === 0 && effectiveReports.length > 0;
-
   const normalizedReports = useMemo(() => {
-    return effectiveReports.map((report) => normalizeReport(report, "Данные из reports"));
-  }, [effectiveReports]);
+    return matchedReports.map((report) => normalizeReport(report, "Данные из reports"));
+  }, [matchedReports]);
 
   useEffect(() => {
     if (!normalizedReports.length) {
@@ -344,7 +317,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           clientId={data.client.id}
           reports={reports}
           matchedCount={matchedReports.length}
-          fallbackEnabled={fallbackEnabled}
         />
 
         <EmptyReportState
@@ -363,7 +335,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         clientId={data.client.id}
         reports={reports}
         matchedCount={matchedReports.length}
-        fallbackEnabled={fallbackEnabled}
       />
 
       <ReportSummary report={activeReport} />
