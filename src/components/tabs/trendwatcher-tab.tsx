@@ -6,6 +6,7 @@ import {
   Database,
   FileJson,
   Loader2,
+  Search,
   Sparkles,
   Target,
   TrendingUp,
@@ -83,18 +84,7 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
     return containsMatches;
   }
 
-  const tokenMatches = reports.filter((report) => {
-    const reportName = normalizeValue(report.client_name);
-    const reportId = normalizeValue(report.client_id);
-    const reportCombined = `${reportName} ${reportId}`.trim();
-
-    const nameTokens = normalizedName.split(" ").filter((token) => token.length >= 3);
-    const matchedTokens = nameTokens.filter((token) => reportCombined.includes(token));
-
-    return matchedTokens.length >= 2;
-  });
-
-  return tokenMatches;
+  return [];
 }
 
 function SectionShell({
@@ -129,49 +119,131 @@ function SectionShell({
   );
 }
 
-function DebugReportState({ report }: { report: ReportRecord }) {
-  const preview = JSON.stringify(
-    {
-      client_id: report.client_id,
-      client_name: report.client_name,
-      generated_at: report.generated_at,
-      status: report.status,
-      competitors: report.competitors,
-      trends: report.trends,
-      scenarios: report.scenarios,
-    },
-    null,
-    2
-  );
+function DebugReportState({
+  report,
+  clientName,
+  clientId,
+  totalReports,
+  matchedReports,
+  availableClientNames,
+}: {
+  report?: ReportRecord;
+  clientName: string;
+  clientId: string;
+  totalReports: number;
+  matchedReports: number;
+  availableClientNames: string[];
+}) {
+  const preview = report
+    ? JSON.stringify(
+        {
+          client_id: report.client_id,
+          client_name: report.client_name,
+          generated_at: report.generated_at,
+          status: report.status,
+          competitors: report.competitors,
+          trends: report.trends,
+          scenarios: report.scenarios,
+        },
+        null,
+        2
+      )
+    : null;
 
   return (
-    <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FBBF24]/30 bg-[#FBBF24]/10 text-[#FBBF24]">
-          <FileJson className="h-5 w-5" />
+    <div className="space-y-5">
+      <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FBBF24]/30 bg-[#FBBF24]/10 text-[#FBBF24]">
+            <Search className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-white">Диагностика загрузки отчётов</h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
+              Показываю, что именно открыто сейчас и какие имена клиентов реально есть в reports.
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-base font-semibold text-white">Отчёт найден, но секции пустые</h3>
-          <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
-            Запись для клиента найдена, но её содержимое пока не разобралось в карточки.
-          </p>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-[#242424] bg-[#101010] p-4">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Открытый client.name</p>
+            <p className="mt-2 text-sm font-medium text-white break-words">{clientName}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#242424] bg-[#101010] p-4">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Открытый client.id</p>
+            <p className="mt-2 text-sm font-medium text-white break-words">{clientId}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#242424] bg-[#101010] p-4">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Всего reports</p>
+            <p className="mt-2 text-sm font-medium text-white">{totalReports}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#242424] bg-[#101010] p-4">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Совпало записей</p>
+            <p className="mt-2 text-sm font-medium text-white">{matchedReports}</p>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-[#242424] bg-[#101010] p-4">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#7DD3FC]">
-          <Database className="h-3.5 w-3.5" />
-          Сырые данные отчёта
+      <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 text-[#38BDF8]">
+            <Database className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-white">client_name из reports</h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
+              Ниже реальные имена клиентов, которые пришли из базы и локального файла.
+            </p>
+          </div>
         </div>
-        <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-[#D1D5DB]">
-          {preview}
-        </pre>
+
+        <div className="flex flex-wrap gap-2">
+          {availableClientNames.length > 0 ? (
+            availableClientNames.map((name) => (
+              <span
+                key={name}
+                className="rounded-full border border-[#2A2A2A] bg-[#101010] px-3 py-1.5 text-xs text-[#D1D5DB]"
+              >
+                {name}
+              </span>
+            ))
+          ) : (
+            <p className="text-sm text-[#8B93A7]">В reports не найдено ни одного client_name.</p>
+          )}
+        </div>
       </div>
+
+      {preview ? (
+        <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FBBF24]/30 bg-[#FBBF24]/10 text-[#FBBF24]">
+              <FileJson className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-white">Пример сырой записи</h3>
+              <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
+                Первая найденная запись для выбранного клиента.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#242424] bg-[#101010] p-4">
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-[#D1D5DB]">
+              {preview}
+            </pre>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
+  const [allReports, setAllReports] = useState<ReportRecord[]>([]);
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -194,9 +266,10 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
       const localRows = (fallbackReports as ReportRecord[]) ?? [];
-      const allReports = dedupeReports([...supabaseRows, ...localRows]);
-      const matchedReports = getClientReports(allReports, data.client.name, data.client.id);
+      const mergedReports = dedupeReports([...supabaseRows, ...localRows]);
+      const matchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
+      setAllReports(mergedReports);
       setReports(matchedReports);
       setIsLoadingReports(false);
     };
@@ -232,6 +305,16 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     () => reports.find((report) => report.id === selectedReportId) ?? reports[0],
     [reports, selectedReportId]
   );
+
+  const availableClientNames = useMemo(() => {
+    return Array.from(
+      new Set(
+        allReports
+          .map((report) => report.client_name?.trim())
+          .filter((value): value is string => Boolean(value))
+      )
+    ).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [allReports]);
 
   const platformOptions = useMemo(
     () => (activeReport ? getPlatformOptions(activeReport) : ["Все платформы"]),
@@ -282,10 +365,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport || !activeRawReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-10 text-center">
-          <ClipboardList className="mx-auto h-8 w-8 text-[#4B5563]" />
-          <p className="mt-3 text-sm text-[#C5CEE0]">Для этого клиента пока нет оформленных инсайтов.</p>
-        </div>
+        <DebugReportState
+          clientName={data.client.name}
+          clientId={data.client.id}
+          totalReports={allReports.length}
+          matchedReports={reports.length}
+          availableClientNames={availableClientNames}
+        />
       </div>
     );
   }
@@ -303,7 +389,14 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           selectedReportId={activeReport.id}
           onSelectReport={setSelectedReportId}
         />
-        <DebugReportState report={activeRawReport} />
+        <DebugReportState
+          report={activeRawReport}
+          clientName={data.client.name}
+          clientId={data.client.id}
+          totalReports={allReports.length}
+          matchedReports={reports.length}
+          availableClientNames={availableClientNames}
+        />
       </div>
     );
   }
