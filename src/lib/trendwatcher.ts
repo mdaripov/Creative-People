@@ -86,24 +86,58 @@ function normalizeValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
+function normalizeMatchText(value: string | null | undefined) {
+  return normalizeValue(value)
+    .replace(/[_-]+/g, " ")
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()"'’”“?<>@+|[\]\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getMeaningfulWords(value: string) {
+  return normalizeMatchText(value)
+    .split(" ")
+    .filter((word) => word.length >= 3);
+}
+
 export function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
-  const reportClientId = normalizeValue(report.client_id);
-  const reportClientName = normalizeValue(report.client_name);
-  const normalizedName = normalizeValue(clientName);
-  const normalizedId = normalizeValue(clientId);
+  const reportClientId = normalizeMatchText(report.client_id);
+  const reportClientName = normalizeMatchText(report.client_name);
+  const normalizedName = normalizeMatchText(clientName);
+  const normalizedId = normalizeMatchText(clientId);
 
   if (!reportClientId && !reportClientName) return 0;
 
   const values = [reportClientId, reportClientName].filter(Boolean);
 
   if (values.includes(normalizedId) || values.includes(normalizedName)) return 100;
-  if (values.some((value) => value.includes(normalizedId) || normalizedId.includes(value))) return 80;
-  if (values.some((value) => value.includes(normalizedName) || normalizedName.includes(value))) return 70;
+  if (values.some((value) => value.includes(normalizedId) || normalizedId.includes(value))) return 92;
+  if (values.some((value) => value.includes(normalizedName) || normalizedName.includes(value))) return 88;
 
-  const nameWords = normalizedName.split(/\s+/).filter(Boolean);
-  const matchedWords = nameWords.filter((word) => values.some((value) => value.includes(word)));
+  const nameWords = getMeaningfulWords(normalizedName);
+  const idWords = getMeaningfulWords(normalizedId);
+  const reportWords = new Set(values.flatMap((value) => getMeaningfulWords(value)));
 
-  if (matchedWords.length > 0) return 40 + matchedWords.length;
+  const matchedNameWords = nameWords.filter((word) => reportWords.has(word));
+  const matchedIdWords = idWords.filter((word) => reportWords.has(word));
+  const totalMatches = new Set([...matchedNameWords, ...matchedIdWords]).size;
+
+  if (totalMatches >= 3) return 80;
+  if (totalMatches === 2) return 68;
+  if (totalMatches === 1) return 52;
+
+  const compactName = normalizedName.replace(/\s+/g, "");
+  const compactReportValues = values.map((value) => value.replace(/\s+/g, ""));
+
+  if (
+    compactReportValues.some(
+      (value) =>
+        value.includes(compactName) ||
+        compactName.includes(value)
+    )
+  ) {
+    return 60;
+  }
 
   return 0;
 }
