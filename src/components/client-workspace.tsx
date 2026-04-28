@@ -53,7 +53,11 @@ export function ClientWorkspace({
   }, [data.client.id]);
 
   return (
-    <div className="flex h-full flex-col animate-fade-in">
+    <div
+      className="flex h-full flex-col animate-fade-in"
+      data-client-workspace="true"
+      data-client-id={data.client.id}
+    >
       <ClientHeader client={data.client} />
 
       <div className="flex-shrink-0 border-b border-[#1A1A1A] px-4 pt-4 sm:px-6">

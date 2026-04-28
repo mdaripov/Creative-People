@@ -66,8 +66,8 @@ function buildScenarioDraft(item: NormalizedScenarioItem) {
   return parts.join("\n\n");
 }
 
-function getDraftStorageKey(title: string) {
-  return `dyad-smm-draft:${title}`;
+function getDraftStorageKey(clientId: string) {
+  return `dyad-smm-draft:${clientId}`;
 }
 
 export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardProps) {
@@ -79,40 +79,17 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
   const handleSendToSmm = () => {
     if (typeof window === "undefined") return;
 
-    const clientWorkspace = window.location.pathname;
-    const draft = buildScenarioDraft(item);
+    const workspace = document.querySelector("[data-client-workspace='true']");
+    const clientId = workspace?.getAttribute("data-client-id");
 
-    const clientIdFromPath = clientWorkspace;
-    void clientIdFromPath;
-
-    const buttons = document.querySelectorAll("button");
-    buttons.forEach(() => {});
-
-    const storageKeys = Object.keys(window.localStorage).filter((key) =>
-      key.startsWith("dyad-smm-draft:")
-    );
-
-    storageKeys.forEach((key) => {
-      if (!key.endsWith(item.title)) return;
-    });
-
-    const possibleClientId = window.location.pathname;
-    void possibleClientId;
-
-    const selectedClientButton = document.querySelector("[data-selected-client-id]");
-    void selectedClientButton;
-
-    const allKeys = Object.keys(window.localStorage);
-    const existingDraftKey = allKeys.find((key) => key.startsWith("dyad-smm-draft:"));
-
-    if (existingDraftKey) {
-      const clientId = existingDraftKey.replace("dyad-smm-draft:", "");
-      window.localStorage.setItem(`dyad-smm-draft:${clientId}`, draft);
-    } else {
-      window.localStorage.setItem(getDraftStorageKey(item.title), draft);
+    if (!clientId) {
+      toast.error("Не удалось определить текущего клиента");
+      return;
     }
 
-    toast.success("Сценарий добавлен в ИИ СММ для доработки");
+    const draft = buildScenarioDraft(item);
+    window.localStorage.setItem(getDraftStorageKey(clientId), draft);
+    toast.success("Сценарий перенесён в ИИ СММ для доработки");
     window.location.reload();
   };
 
