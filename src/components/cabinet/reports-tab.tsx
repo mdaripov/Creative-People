@@ -11,6 +11,7 @@ import {
   ReceiptText,
   Save,
   Trash2,
+  UserRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ interface ReportEntry {
   id: string;
   date: string;
   client: string;
+  specialistId: string;
+  specialistName: string;
   task: string;
   startTime: string;
   endTime: string;
@@ -82,6 +85,16 @@ function addDurations(values: string[]) {
   return `${hours}:${minutes}`;
 }
 
+function buildSpecialistName(profile: {
+  first_name: string | null;
+  last_name: string | null;
+} | null) {
+  if (!profile) return "Неизвестный специалист";
+
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+  return fullName || "Без имени";
+}
+
 export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [entries, setEntries] = useState<ReportEntry[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ReportEntry>>({});
@@ -99,7 +112,9 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
       let query = supabase
         .from("work_reports")
-        .select("id, date, client_name, task, start_time, end_time, notes, specialist_id")
+        .select(
+          "id, date, client_name, task, start_time, end_time, notes, specialist_id, profiles!work_reports_specialist_id_fkey(first_name, last_name)"
+        )
         .order("date", { ascending: false })
         .order("start_time", { ascending: false });
 
@@ -121,6 +136,8 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
           id: entry.id,
           date: entry.date,
           client: entry.client_name,
+          specialistId: entry.specialist_id,
+          specialistName: buildSpecialistName(entry.profiles),
           task: entry.task,
           startTime: entry.start_time,
           endTime: entry.end_time,
@@ -303,7 +320,9 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
         end_time: "10:00",
         notes: "",
       })
-      .select("id, date, client_name, task, start_time, end_time, notes")
+      .select(
+        "id, date, client_name, task, start_time, end_time, notes, specialist_id, profiles!work_reports_specialist_id_fkey(first_name, last_name)"
+      )
       .single();
 
     setIsMutating(false);
@@ -317,6 +336,8 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
       id: data.id,
       date: data.date,
       client: data.client_name,
+      specialistId: data.specialist_id,
+      specialistName: buildSpecialistName(data.profiles),
       task: data.task,
       startTime: data.start_time,
       endTime: data.end_time,
@@ -346,7 +367,9 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               </div>
               <h2 className="text-2xl font-semibold text-white sm:text-3xl">Отчёты по задачам</h2>
               <p className="mt-2 max-w-2xl text-sm text-[#8B93A7]">
-                Ведите отчёт по времени, задачам и клиентам в одном аккуратном табличном интерфейсе.
+                {role === "manager"
+                  ? "Здесь отображаются отчёты всех SMM-специалистов команды."
+                  : "Ведите отчёт по времени, задачам и клиентам в одном аккуратном табличном интерфейсе."}
               </p>
             </div>
 
@@ -412,12 +435,17 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
         <div className="overflow-hidden rounded-[28px] border border-[#1E1E1E] bg-[#131313]">
           <div className="overflow-x-auto">
-            <table className="min-w-[1280px] w-full">
+            <table className="min-w-[1440px] w-full">
               <thead>
                 <tr className="border-b border-[#1E1E1E] bg-[#171717]">
                   <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
                     Дата
                   </th>
+                  {role === "manager" && (
+                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
+                      Специалист
+                    </th>
+                  )}
                   <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#8B93A7]">
                     Клиент
                   </th>
@@ -444,7 +472,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10">
+                    <td colSpan={role === "manager" ? 9 : 8} className="px-4 py-10">
                       <div className="flex items-center justify-center">
                         <Loader2 className="h-5 w-5 animate-spin text-[#8B93A7]" />
                       </div>
@@ -470,6 +498,16 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                           className="h-11 min-w-[150px] rounded-2xl border-[#262626] bg-[#101010] text-white disabled:opacity-70"
                         />
                       </td>
+
+                      {role === "manager" && (
+                        <td className="px-4 py-3">
+                          <div className="flex min-w-[200px] items-center gap-2 rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white">
+                            <UserRound className="h-4 w-4 text-[#38BDF8]" />
+                            <span>{current.specialistName}</span>
+                          </div>
+                        </td>
+                      )}
+
                       <td className="px-4 py-3">
                         <select
                           value={current.client}
@@ -572,7 +610,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
                 {!isLoading && filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
+                    <td colSpan={role === "manager" ? 9 : 8} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
                       По выбранному фильтру записей пока нет.
                     </td>
                   </tr>
