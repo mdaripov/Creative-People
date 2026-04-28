@@ -348,12 +348,12 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
             {filteredCompetitors.length > 0 ? (
               <SectionShell
                 id="competitors"
-                title="Конкурентные наблюдения"
-                subtitle="Что у других реально сработало, что можно адаптировать и где важно не копировать в лоб."
+                title="Большой блок конкурентов"
+                subtitle="Полный список конкурентных наблюдений вынесен выше сценариев, чтобы сначала смотреть рынок и только потом идеи для запуска."
                 icon={<Target className="h-5 w-5" />}
                 accent="#38BDF8"
               >
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="grid gap-4">
                   {filteredCompetitors.map((item) => (
                     <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
                   ))}
