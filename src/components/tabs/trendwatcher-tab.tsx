@@ -18,7 +18,6 @@ import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import {
-  getMatchScore,
   getPlatformOptions,
   normalizeReport,
   type ReportRecord,
@@ -26,6 +25,66 @@ import {
   type ViewMode,
 } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
+
+function normalizeSearchValue(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()"'’”“?<>@+|[\]\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSearchTokens(value: string) {
+  return normalizeSearchValue(value)
+    .split(" ")
+    .filter((token) => token.length >= 3);
+}
+
+function matchesClientReport(report: ReportRecord, clientName: string, clientId: string) {
+  const reportClientId = normalizeSearchValue(report.client_id ?? "");
+  const reportClientName = normalizeSearchValue(report.client_name ?? "");
+  const normalizedClientName = normalizeSearchValue(clientName);
+  const normalizedClientId = normalizeSearchValue(clientId);
+
+  const haystack = [reportClientId, reportClientName].filter(Boolean).join(" ");
+
+  if (!haystack) return false;
+
+  if (
+    haystack === normalizedClientName ||
+    haystack === normalizedClientId ||
+    haystack.includes(normalizedClientName) ||
+    normalizedClientName.includes(haystack) ||
+    haystack.includes(normalizedClientId) ||
+    normalizedClientId.includes(haystack)
+  ) {
+    return true;
+  }
+
+  const clientTokens = [
+    ...getSearchTokens(normalizedClientName),
+    ...getSearchTokens(normalizedClientId),
+  ];
+
+  const uniqueTokens = Array.from(new Set(clientTokens));
+  const matchedTokens = uniqueTokens.filter((token) => haystack.includes(token));
+
+  if (matchedTokens.length >= 2) {
+    return true;
+  }
+
+  if (
+    normalizedClientName === "merkez kehillat herzliya" &&
+    (haystack.includes("merkez") ||
+      haystack.includes("kehillat") ||
+      haystack.includes("herzliya"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 function SectionShell({
   title,
@@ -83,7 +142,7 @@ function DebugReportState({ report }: { report: ReportRecord }) {
         <div>
           <h3 className="text-base font-semibold text-white">Отчёт найден, но секции пустые</h3>
           <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
-            Значит запись из базы пришла, но её структура пока не совпадает с ожидаемым форматом карточек.
+            Запись из базы найдена, но её содержимое пока не разобралось в карточки.
           </p>
         </div>
       </div>
@@ -123,15 +182,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       if (!isMounted) return;
 
       const allReports = (reportsData as ReportRecord[] | null) ?? [];
-
-      const matchedReports = allReports
-        .map((report) => ({
-          report,
-          score: getMatchScore(report, data.client.name, data.client.id),
-        }))
-        .filter((item) => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((item) => item.report);
+      const matchedReports = allReports.filter((report) =>
+        matchesClientReport(report, data.client.name, data.client.id)
+      );
 
       setReports(matchedReports);
       setIsLoadingReports(false);
