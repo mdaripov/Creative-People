@@ -19,7 +19,6 @@ import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import {
-  getMatchScore,
   getPlatformOptions,
   normalizeReport,
   type ReportRecord,
@@ -27,6 +26,76 @@ import {
   type ViewMode,
 } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
+
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function dedupeReports(reports: ReportRecord[]) {
+  const map = new Map<string, ReportRecord>();
+
+  reports.forEach((report) => {
+    const key = report.id || `${report.client_id}-${report.client_name}-${report.generated_at}`;
+    if (!map.has(key)) {
+      map.set(key, report);
+    }
+  });
+
+  return Array.from(map.values());
+}
+
+function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
+  const normalizedName = normalizeValue(clientName);
+  const normalizedId = normalizeValue(clientId);
+
+  const exactMatches = reports.filter((report) => {
+    const reportName = normalizeValue(report.client_name);
+    const reportId = normalizeValue(report.client_id);
+
+    return (
+      reportName === normalizedName ||
+      reportId === normalizedId ||
+      reportName === normalizedId ||
+      reportId === normalizedName
+    );
+  });
+
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+
+  const containsMatches = reports.filter((report) => {
+    const reportName = normalizeValue(report.client_name);
+    const reportId = normalizeValue(report.client_id);
+
+    return (
+      (reportName && reportName.includes(normalizedName)) ||
+      (reportId && reportId.includes(normalizedId)) ||
+      (normalizedName && reportName && normalizedName.includes(reportName)) ||
+      (normalizedId && reportId && normalizedId.includes(reportId))
+    );
+  });
+
+  if (containsMatches.length > 0) {
+    return containsMatches;
+  }
+
+  const tokenMatches = reports.filter((report) => {
+    const reportName = normalizeValue(report.client_name);
+    const reportId = normalizeValue(report.client_id);
+    const reportCombined = `${reportName} ${reportId}`.trim();
+
+    const nameTokens = normalizedName.split(" ").filter((token) => token.length >= 3);
+    const matchedTokens = nameTokens.filter((token) => reportCombined.includes(token));
+
+    return matchedTokens.length >= 2;
+  });
+
+  return tokenMatches;
+}
 
 function SectionShell({
   title,
@@ -84,7 +153,7 @@ function DebugReportState({ report }: { report: ReportRecord }) {
         <div>
           <h3 className="text-base font-semibold text-white">Отчёт найден, но секции пустые</h3>
           <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
-            Запись найдена, но её содержимое пока не разобралось в карточки.
+            Запись для клиента найдена, но её содержимое пока не разобралось в карточки.
           </p>
         </div>
       </div>
@@ -100,19 +169,6 @@ function DebugReportState({ report }: { report: ReportRecord }) {
       </div>
     </div>
   );
-}
-
-function dedupeReports(reports: ReportRecord[]) {
-  const map = new Map<string, ReportRecord>();
-
-  reports.forEach((report) => {
-    const key = report.id || `${report.client_id}-${report.generated_at}`;
-    if (!map.has(key)) {
-      map.set(key, report);
-    }
-  });
-
-  return Array.from(map.values());
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
@@ -139,15 +195,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
       const localRows = (fallbackReports as ReportRecord[]) ?? [];
       const allReports = dedupeReports([...supabaseRows, ...localRows]);
-
-      const matchedReports = allReports
-        .map((report) => ({
-          report,
-          score: getMatchScore(report, data.client.name, data.client.id),
-        }))
-        .filter((item) => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((item) => item.report);
+      const matchedReports = getClientReports(allReports, data.client.name, data.client.id);
 
       setReports(matchedReports);
       setIsLoadingReports(false);
@@ -161,7 +209,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
-    return reports.map((report) => normalizeReport(report, "Данные из Supabase / reports"));
+    return reports.map((report) => normalizeReport(report, "Данные из reports"));
   }, [reports]);
 
   useEffect(() => {
