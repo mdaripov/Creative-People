@@ -22,8 +22,17 @@ import type { ClientData } from "@/lib/mock-data";
 
 type FeedType = "all" | "trends" | "competitors" | "scenarios";
 
+interface ClientLookupRow {
+  id: string;
+  name: string;
+}
+
 function normalizeValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function normalizeLoose(value: string | null | undefined) {
+  return normalizeValue(value).replace(/[-_.,/#!$%^&*;:{}=\`~()"'+?<>@\[\]\\]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function dedupeReports(reports: ReportRecord[]) {
@@ -39,15 +48,43 @@ function dedupeReports(reports: ReportRecord[]) {
   return Array.from(map.values());
 }
 
-function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
-  const normalizedClientName = normalizeValue(clientName);
-  const normalizedClientId = normalizeValue(clientId);
+function buildClientTokens(client: {
+  selectedId: string;
+  selectedName: string;
+  resolvedClient: ClientLookupRow | null;
+}) {
+  const rawValues = [
+    client.selectedId,
+    client.selectedName,
+    client.resolvedClient?.id,
+    client.resolvedClient?.name,
+  ].filter((value): value is string => Boolean(value && value.trim()));
+
+  const exact = Array.from(new Set(rawValues.map((value) => normalizeValue(value))));
+  const loose = Array.from(new Set(rawValues.map((value) => normalizeLoose(value))));
+
+  return { exact, loose };
+}
+
+function getClientReports(
+  reports: ReportRecord[],
+  selectedId: string,
+  selectedName: string,
+  resolvedClient: ClientLookupRow | null
+) {
+  const tokens = buildClientTokens({
+    selectedId,
+    selectedName,
+    resolvedClient,
+  });
 
   const exactMatches = reports.filter((report) => {
-    const reportName = normalizeValue(report.client_name);
-    const reportId = normalizeValue(report.client_id);
+    const reportExactValues = [
+      normalizeValue(report.client_id),
+      normalizeValue(report.client_name),
+    ];
 
-    return reportName === normalizedClientName || reportId === normalizedClientId;
+    return reportExactValues.some((value) => value && tokens.exact.includes(value));
   });
 
   if (exactMatches.length > 0) {
@@ -57,14 +94,18 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
   }
 
   const partialMatches = reports.filter((report) => {
-    const reportName = normalizeValue(report.client_name);
-    const reportId = normalizeValue(report.client_id);
+    const reportLooseValues = [
+      normalizeLoose(report.client_id),
+      normalizeLoose(report.client_name),
+    ].filter(Boolean);
 
-    return (
-      (reportName && normalizedClientName && reportName.includes(normalizedClientName)) ||
-      (reportId && normalizedClientId && reportId.includes(normalizedClientId)) ||
-      (reportName && normalizedClientName && normalizedClientName.includes(reportName)) ||
-      (reportId && normalizedClientId && normalizedClientId.includes(reportId))
+    return reportLooseValues.some((reportValue) =>
+      tokens.loose.some(
+        (token) =>
+          token &&
+          reportValue &&
+          (reportValue.includes(token) || token.includes(reportValue))
+      )
     );
   });
 
@@ -187,6 +228,7 @@ function EmptyReportState({ clientName }: { clientName: string }) {
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
+  const [resolvedClient, setResolvedClient] = useState<ClientLookupRow | null>(null);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
   const [selectedPlatform, setSelectedPlatform] = useState("Все платформы");
@@ -200,16 +242,31 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     const fetchReports = async () => {
       setIsLoadingReports(true);
 
-      const { data: reportsData } = await supabase
-        .from("reports")
-        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
-        .order("generated_at", { ascending: false });
+      const [clientResponse, reportsResponse] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, name")
+          .or(`id.eq.${data.client.id},name.eq.${data.client.name}`)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("reports")
+          .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
+          .order("generated_at", { ascending: false }),
+      ]);
 
       if (!isMounted) return;
 
-      const reports = dedupeReports((reportsData as ReportRecord[] | null) ?? []);
-      const nextReports = getClientReports(reports, data.client.name, data.client.id);
+      const nextResolvedClient = (clientResponse.data as ClientLookupRow | null) ?? null;
+      const reports = dedupeReports((reportsResponse.data as ReportRecord[] | null) ?? []);
+      const nextReports = getClientReports(
+        reports,
+        data.client.id,
+        data.client.name,
+        nextResolvedClient
+      );
 
+      setResolvedClient(nextResolvedClient);
       setMatchedReports(nextReports);
       setIsLoadingReports(false);
     };
@@ -327,7 +384,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <EmptyReportState clientName={data.client.name} />
+        <EmptyReportState clientName={resolvedClient?.name ?? data.client.name} />
       </div>
     );
   }
