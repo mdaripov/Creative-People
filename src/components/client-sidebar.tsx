@@ -35,6 +35,11 @@ type SupabaseClient = {
   name: string;
 };
 
+type ReportsClient = {
+  client_id: string | null;
+  client_name: string | null;
+};
+
 type SupabaseSpecialist = {
   id: string;
   first_name: string | null;
@@ -106,6 +111,10 @@ function buildSpecialistName(specialist: SupabaseSpecialist) {
   return fullName || "Без имени";
 }
 
+function normalizeName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export function ClientSidebar({
   selectedClientId,
   onSelectClient,
@@ -138,6 +147,11 @@ export function ClientSidebar({
 
       const clientQuery = supabase.from("clients").select("id, name").order("name", { ascending: true });
 
+      const reportsQuery = supabase
+        .from("reports")
+        .select("client_id, client_name")
+        .order("generated_at", { ascending: false });
+
       const specialistQuery = canViewSpecialists
         ? supabase
             .from("profiles")
@@ -146,17 +160,18 @@ export function ClientSidebar({
             .order("first_name", { ascending: true })
         : Promise.resolve({ data: [], error: null });
 
-      const [clientsResponse, specialistsResponse] = await Promise.all([
+      const [clientsResponse, reportsResponse, specialistsResponse] = await Promise.all([
         clientQuery,
+        reportsQuery,
         specialistQuery,
       ]);
 
-      if (clientsResponse.error) {
+      if (clientsResponse.error && reportsResponse.error) {
         setClients([]);
         setSpecialists([]);
         setRawCount(0);
         onClientsLoaded?.([]);
-        setFetchError(clientsResponse.error.message);
+        setFetchError(clientsResponse.error?.message || reportsResponse.error?.message || "Ошибка загрузки");
         toast.error("Не удалось загрузить клиентов");
         setIsLoading(false);
         return;
@@ -167,12 +182,39 @@ export function ClientSidebar({
         toast.error("Не удалось загрузить SMM-специалистов");
       }
 
-      const clientRows = clientsResponse.data ?? [];
+      const clientRows = (clientsResponse.data as SupabaseClient[] | null) ?? [];
+      const reportRows = (reportsResponse.data as ReportsClient[] | null) ?? [];
       const specialistRows = specialistsResponse.data ?? [];
 
-      setRawCount(clientRows.length);
+      const mergedMap = new Map<string, { id: string; name: string }>();
 
-      const mappedClients: ClientListItem[] = clientRows.map((client: SupabaseClient) => ({
+      clientRows.forEach((client) => {
+        mergedMap.set(normalizeName(client.name), {
+          id: client.id,
+          name: client.name,
+        });
+      });
+
+      reportRows.forEach((report, index) => {
+        const reportName = report.client_name?.trim();
+        if (!reportName) return;
+
+        const key = normalizeName(reportName);
+        if (mergedMap.has(key)) return;
+
+        mergedMap.set(key, {
+          id: report.client_id?.trim() || `report-client-${index}-${key.replace(/\s+/g, "-")}`,
+          name: reportName,
+        });
+      });
+
+      const mergedClients = Array.from(mergedMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name, "ru")
+      );
+
+      setRawCount(mergedClients.length);
+
+      const mappedClients: ClientListItem[] = mergedClients.map((client) => ({
         id: client.id,
         name: client.name,
         industry: "Клиент",
@@ -180,8 +222,8 @@ export function ClientSidebar({
         avatarColor: getAvatarColor(client.name),
       }));
 
-      const mappedSpecialists: SpecialistListItem[] = specialistRows.map(
-        (specialist: SupabaseSpecialist) => {
+      const mappedSpecialists: SpecialistListItem[] = (specialistRows as SupabaseSpecialist[]).map(
+        (specialist) => {
           const name = buildSpecialistName(specialist);
 
           return {
@@ -195,11 +237,11 @@ export function ClientSidebar({
 
       setClients(mappedClients);
       setSpecialists(mappedSpecialists);
-      onClientsLoaded?.(clientRows.map((client: SupabaseClient) => ({ id: client.id, name: client.name })));
+      onClientsLoaded?.(mergedClients);
       setIsLoading(false);
     };
 
-    fetchSidebarData();
+    void fetchSidebarData();
   }, [onClientsLoaded, canViewSpecialists]);
 
   const filtered = useMemo(
@@ -459,7 +501,7 @@ export function ClientSidebar({
               <div className="flex items-start gap-2 text-xs text-[#FCA5A5]">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">Ошибка Supabase</p>
+                  <p className="font-medium">Ошибка загрузки</p>
                   <p className="text-[#FECACA] break-words">{fetchError}</p>
                 </div>
               </div>
@@ -467,8 +509,8 @@ export function ClientSidebar({
               <div className="flex items-start gap-2 text-xs text-[#86EFAC]">
                 <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-white">Запрос выполнен</p>
-                  <p className="text-[#8B93A7]">Таблица clients вернула записей: {rawCount}</p>
+                  <p className="font-medium text-white">Клиенты собраны</p>
+                  <p className="text-[#8B93A7]">Всего найдено: {rawCount}</p>
                   <p className="text-[#8B93A7]">После поиска показано: {filtered.length}</p>
                 </div>
               </div>
@@ -563,7 +605,7 @@ export function ClientSidebar({
               <p className="text-sm text-[#6B7280]">Нет клиентов</p>
               {!fetchError && (
                 <p className="text-xs text-[#8B93A7]">
-                  Запрос к таблице clients выполнился, но вернул 0 записей.
+                  В таблицах clients и reports не найдено подходящих записей.
                 </p>
               )}
             </div>
