@@ -361,6 +361,10 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
               </SectionShell>
             ) : null}
 
+            {activeReport.analysis ? (
+              <AnalysisPanel analysis={activeReport.analysis} summary={analysisSummary} />
+            ) : null}
+
             {readyScenarios.length > 0 ? (
               <SectionShell
                 id="ready-scenarios"
@@ -403,10 +407,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
                   ) : null}
                 </div>
               </SectionShell>
-            ) : null}
-
-            {activeReport.analysis ? (
-              <AnalysisPanel analysis={activeReport.analysis} summary={analysisSummary} />
             ) : null}
           </div>
         )}
