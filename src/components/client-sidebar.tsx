@@ -34,6 +34,13 @@ type SupabaseClient = {
   name: string;
 };
 
+type SupabaseSpecialist = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  role: "smm_specialist" | "manager";
+};
+
 type ClientStatus = "active" | "paused" | "review";
 
 type ClientListItem = {
@@ -41,6 +48,13 @@ type ClientListItem = {
   name: string;
   industry: string;
   status: ClientStatus;
+  avatarColor: string;
+};
+
+type SpecialistListItem = {
+  id: string;
+  name: string;
+  subtitle: string;
   avatarColor: string;
 };
 
@@ -57,7 +71,7 @@ function StatusDot({ status }: { status: ClientStatus }) {
   );
 }
 
-function ClientAvatar({ client }: { client: ClientListItem }) {
+function ClientAvatar({ client }: { client: { name: string; avatarColor: string } }) {
   const initials = client.name
     .split(" ")
     .map((w) => w[0])
@@ -82,6 +96,15 @@ function getAvatarColor(name: string) {
   return palette[index];
 }
 
+function buildSpecialistName(specialist: SupabaseSpecialist) {
+  const fullName = [specialist.first_name, specialist.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return fullName || "Без имени";
+}
+
 export function ClientSidebar({
   selectedClientId,
   onSelectClient,
@@ -94,35 +117,48 @@ export function ClientSidebar({
 }: ClientSidebarProps) {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [specialists, setSpecialists] = useState<SpecialistListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [rawCount, setRawCount] = useState(0);
   const [cabinetSection, setCabinetSection] = useState<"clients" | "specialists">("clients");
 
   useEffect(() => {
-    const fetchClients = async () => {
+    const fetchSidebarData = async () => {
       setIsLoading(true);
       setFetchError(null);
 
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .order("name", { ascending: true });
+      const [clientsResponse, specialistsResponse] = await Promise.all([
+        supabase.from("clients").select("id, name").order("name", { ascending: true }),
+        supabase
+          .from("profiles")
+          .select("id, first_name, last_name, role")
+          .eq("role", "smm_specialist")
+          .order("first_name", { ascending: true }),
+      ]);
 
-      if (error) {
+      if (clientsResponse.error) {
         setClients([]);
+        setSpecialists([]);
         setRawCount(0);
         onClientsLoaded?.([]);
-        setFetchError(error.message);
+        setFetchError(clientsResponse.error.message);
         toast.error("Не удалось загрузить клиентов");
         setIsLoading(false);
         return;
       }
 
-      const rows = data ?? [];
-      setRawCount(rows.length);
+      if (specialistsResponse.error) {
+        setSpecialists([]);
+        toast.error("Не удалось загрузить SMM-специалистов");
+      }
 
-      const mappedClients: ClientListItem[] = rows.map((client: SupabaseClient) => ({
+      const clientRows = clientsResponse.data ?? [];
+      const specialistRows = specialistsResponse.data ?? [];
+
+      setRawCount(clientRows.length);
+
+      const mappedClients: ClientListItem[] = clientRows.map((client: SupabaseClient) => ({
         id: client.id,
         name: client.name,
         industry: "Клиент",
@@ -130,12 +166,26 @@ export function ClientSidebar({
         avatarColor: getAvatarColor(client.name),
       }));
 
+      const mappedSpecialists: SpecialistListItem[] = specialistRows.map(
+        (specialist: SupabaseSpecialist) => {
+          const name = buildSpecialistName(specialist);
+
+          return {
+            id: `specialist-${specialist.id}`,
+            name,
+            subtitle: "Личный кабинет",
+            avatarColor: getAvatarColor(name),
+          };
+        }
+      );
+
       setClients(mappedClients);
-      onClientsLoaded?.(rows.map((client: SupabaseClient) => ({ id: client.id, name: client.name })));
+      setSpecialists(mappedSpecialists);
+      onClientsLoaded?.(clientRows.map((client: SupabaseClient) => ({ id: client.id, name: client.name })));
       setIsLoading(false);
     };
 
-    fetchClients();
+    fetchSidebarData();
   }, [onClientsLoaded]);
 
   const filtered = useMemo(
@@ -148,17 +198,22 @@ export function ClientSidebar({
     [clients, search]
   );
 
-  const assignedClients = useMemo(
-    () => clients.filter((client) => assignedClientIds.includes(client.id)),
-    [clients, assignedClientIds]
+  const filteredSpecialists = useMemo(
+    () =>
+      specialists.filter(
+        (specialist) =>
+          specialist.name.toLowerCase().includes(search.toLowerCase()) ||
+          specialist.subtitle.toLowerCase().includes(search.toLowerCase())
+      ),
+    [specialists, search]
   );
 
   if (mode === "cabinet") {
-    const visibleClients = cabinetSection === "clients" ? clients : assignedClients;
+    const visibleItems = cabinetSection === "clients" ? clients : filteredSpecialists;
     const sectionTitle =
       cabinetSection === "clients"
         ? `Все клиенты (${clients.length})`
-        : `SMM специалисты (${assignedClients.length})`;
+        : `SMM специалисты (${filteredSpecialists.length})`;
 
     return (
       <div className="w-full flex flex-col h-full bg-[#111111] border-r border-[#1E1E1E]">
@@ -198,6 +253,17 @@ export function ClientSidebar({
             </div>
 
             <div className="p-3 border-b border-[#1E1E1E]">
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
+                <input
+                  type="text"
+                  placeholder={cabinetSection === "clients" ? "Поиск клиентов..." : "Поиск специалистов..."}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-[#6B7280] focus:outline-none focus:border-[#3A3A3A] transition-colors"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setCabinetSection("clients")}
@@ -260,23 +326,23 @@ export function ClientSidebar({
             <div className="px-5 py-8 flex items-center justify-center">
               <Loader2 className="w-5 h-5 text-[#6B7280] animate-spin" />
             </div>
-          ) : visibleClients.length > 0 ? (
+          ) : visibleItems.length > 0 ? (
             <ul className="space-y-0.5 px-2">
-              {visibleClients.map((client) => {
-                const isSelected = selectedClientId === client.id;
+              {visibleItems.map((item) => {
+                const isSelected = selectedClientId === item.id;
 
                 return (
-                  <li key={client.id}>
+                  <li key={item.id}>
                     <button
-                      onClick={() => onSelectClient(client.id, client.name)}
+                      onClick={() => onSelectClient(item.id, item.name)}
                       className={`
                         w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-2 rounded-xl text-left
                         transition-all duration-200
                         ${isSelected ? "bg-white text-black" : "hover:bg-[#1A1A1A]"}
                       `}
-                      title={collapsed ? client.name : undefined}
+                      title={collapsed ? item.name : undefined}
                     >
-                      <ClientAvatar client={client} />
+                      <ClientAvatar client={{ name: item.name, avatarColor: item.avatarColor }} />
                       {!collapsed && (
                         <>
                           <div className="flex-1 min-w-0">
@@ -285,17 +351,17 @@ export function ClientSidebar({
                                 isSelected ? "text-black" : "text-white"
                               }`}
                             >
-                              {client.name}
+                              {item.name}
                             </p>
                             <p
                               className={`text-[10px] truncate leading-tight mt-0.5 ${
                                 isSelected ? "text-[#555]" : "text-[#6B7280]"
                               }`}
                             >
-                              {cabinetSection === "clients" ? client.industry : "Личный кабинет"}
+                              {"industry" in item ? item.industry : item.subtitle}
                             </p>
                           </div>
-                          <StatusDot status={client.status} />
+                          {"status" in item ? <StatusDot status={item.status} /> : null}
                         </>
                       )}
                     </button>
@@ -309,12 +375,12 @@ export function ClientSidebar({
                 <p className="text-sm text-[#6B7280]">
                   {cabinetSection === "clients"
                     ? "Нет клиентов"
-                    : "Нет выбранных кабинетов специалистов"}
+                    : "Нет зарегистрированных SMM-специалистов"}
                 </p>
                 <p className="text-xs text-[#8B93A7]">
                   {cabinetSection === "clients"
                     ? "Клиенты загрузятся здесь автоматически."
-                    : "Выбранные кабинеты специалистов будут отображаться в этом разделе."}
+                    : "Как только специалисты зарегистрированы, они появятся здесь."}
                 </p>
               </div>
             )
