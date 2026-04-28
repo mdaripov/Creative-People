@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  CheckCircle2,
-  ClipboardPen,
-  Layers3,
-  Megaphone,
-  Send,
-  WandSparkles,
-} from "lucide-react";
+import { CheckCircle2, ClipboardPen, Layers3, Megaphone, Send, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedScenarioItem, ViewMode } from "@/lib/trendwatcher";
@@ -40,38 +33,41 @@ const statusConfig = {
     border: "rgba(156,163,175,0.22)",
     icon: ClipboardPen,
   },
-};
+} satisfies Record<
+  NormalizedScenarioItem["status"],
+  {
+    label: string;
+    color: string;
+    bg: string;
+    border: string;
+    icon: typeof CheckCircle2;
+  }
+>;
 
 function isMeaningfulValue(value: string) {
   const normalized = value.trim().toLowerCase();
   return Boolean(normalized) && normalized !== "все платформы" && normalized !== "не указан";
 }
 
-function buildScenarioDraft(item: NormalizedScenarioItem) {
-  const metaLine = [
-    isMeaningfulValue(item.format) ? `Формат: ${item.format}` : "",
-    isMeaningfulValue(item.platform) ? `Платформа: ${item.platform}` : "",
-  ]
-    .filter(Boolean)
-    .join(" | ");
+function getDraftStorageKey(clientId: string) {
+  return `dyad-smm-draft:${clientId}`;
+}
 
-  const parts = [
+function buildScenarioDraft(item: NormalizedScenarioItem) {
+  const lines = [
     "Улучши и доработай этот сценарий для публикации.",
     "",
     item.title,
-    metaLine,
+    isMeaningfulValue(item.format) ? `Формат: ${item.format}` : "",
+    isMeaningfulValue(item.platform) ? `Платформа: ${item.platform}` : "",
     item.hook ? `Хук: ${item.hook}` : "",
     item.structure ? `Сценарий: ${item.structure}` : "",
     item.cta ? `CTA: ${item.cta}` : "",
     item.expectedEffect ? `Почему сработает: ${item.expectedEffect}` : "",
     item.bullets.length > 0 ? item.bullets.join("\n") : "",
-  ].filter((part) => part && part.trim().length > 0);
+  ];
 
-  return parts.join("\n");
-}
-
-function getDraftStorageKey(clientId: string) {
-  return `dyad-smm-draft:${clientId}`;
+  return lines.filter((line) => line.trim().length > 0).join("\n");
 }
 
 export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardProps) {
@@ -91,24 +87,19 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
       return;
     }
 
-    const draft = buildScenarioDraft(item);
-    window.localStorage.setItem(getDraftStorageKey(clientId), draft);
-
+    window.localStorage.setItem(getDraftStorageKey(clientId), buildScenarioDraft(item));
     window.dispatchEvent(
       new CustomEvent("dyad:open-smm-chat", {
         detail: { clientId },
       })
     );
-
     toast.success("Весь сценарий перенесён в ИИ СММ для доработки");
   };
 
   return (
     <div
-      className="rounded-[24px] border bg-[#141A23] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
-      style={{
-        borderColor: featured ? status.border : "#253041",
-      }}
+      className="rounded-[24px] border bg-[#141A23] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.16)] sm:p-5"
+      style={{ borderColor: featured ? status.border : "#253041" }}
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -201,7 +192,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-4">
