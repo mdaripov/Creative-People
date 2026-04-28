@@ -90,9 +90,6 @@ export function FilterBar({
               <SlidersHorizontal className="h-4 w-4 text-[#A78BFA]" />
               <h3 className="text-sm font-semibold text-white">Управление просмотром</h3>
             </div>
-            <p className="mt-1 text-[11px] text-[#7F8CA3]">
-              Быстрые фильтры для просмотра отчёта.
-            </p>
           </div>
 
           <div className="inline-flex w-full rounded-full border border-[#263245] bg-[#0F141C] p-1 xl:w-auto">

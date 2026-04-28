@@ -1,10 +1,68 @@
 "use client";
 
-import { Rocket, Sparkles, Target } from "lucide-react";
+import { ArrowUpRight, Rocket, Sparkles, Target } from "lucide-react";
 import type { NormalizedReport } from "@/lib/trendwatcher";
 
 interface ReportSummaryProps {
   report: NormalizedReport;
+}
+
+function cleanLinkTarget(value: string) {
+  const trimmed = value.trim();
+  const match = trimmed.match(/https?:\/\/[^\s<]+/);
+  return match?.[0] ?? null;
+}
+
+function SummaryLinkCard({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  const href = cleanLinkTarget(value);
+  const content = (
+    <div className="group rounded-3xl border border-[#2A3548] bg-[#10151F] p-4 transition-all duration-200 hover:border-[#3A4660] hover:bg-[#121925]">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EA0BE]">
+        {label}
+      </p>
+      <div className="flex items-start gap-3">
+        <div
+          className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border"
+          style={{
+            color,
+            background: `${color}14`,
+            borderColor: `${color}28`,
+          }}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-6 text-[#E5E7EB] break-words">{value}</p>
+          {href ? (
+            <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity group-hover:opacity-80" style={{ color }}>
+              Открыть ссылку
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer noopener" className="block">
+        {content}
+      </a>
+    );
+  }
+
+  return content;
 }
 
 export function ReportSummary({ report }: ReportSummaryProps) {
@@ -31,25 +89,19 @@ export function ReportSummary({ report }: ReportSummaryProps) {
         </h2>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-3xl border border-[#2A3548] bg-[#10151F] p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EA0BE]">
-              Сначала смотреть
-            </p>
-            <div className="flex items-start gap-2">
-              <Target className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#38BDF8]" />
-              <p className="text-sm leading-6 text-[#E5E7EB]">{report.summary.primaryFocus}</p>
-            </div>
-          </div>
+          <SummaryLinkCard
+            label="Сначала смотреть"
+            value={report.summary.primaryFocus}
+            icon={<Target className="h-4 w-4" />}
+            color="#38BDF8"
+          />
 
-          <div className="rounded-3xl border border-[#2A3548] bg-[#10151F] p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EA0BE]">
-              Что запускать первым
-            </p>
-            <div className="flex items-start gap-2">
-              <Rocket className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#34D399]" />
-              <p className="text-sm leading-6 text-[#E5E7EB]">{topAction}</p>
-            </div>
-          </div>
+          <SummaryLinkCard
+            label="Что запускать первым"
+            value={topAction}
+            icon={<Rocket className="h-4 w-4" />}
+            color="#34D399"
+          />
         </div>
       </div>
     </div>
