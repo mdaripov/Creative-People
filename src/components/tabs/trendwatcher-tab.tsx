@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
+import { ExternalLink, Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
@@ -11,7 +11,6 @@ import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
 import {
-  getPlatformOptions,
   getMatchScore,
   normalizeReport,
   type ReportRecord,
@@ -69,6 +68,63 @@ function SectionShell({
       </div>
       {children}
     </section>
+  );
+}
+
+function CompetitorHighlightCard({
+  name,
+  source,
+  observation,
+  insight,
+}: {
+  name: string;
+  source: string;
+  observation: string;
+  insight: string;
+}) {
+  const isUrl = /^https?:\/\//i.test(source);
+
+  return (
+    <div className="rounded-[24px] border border-[#253041] bg-[#121821] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-base font-semibold text-white">{name}</p>
+          <p className="mt-1 text-xs text-[#8EA0BE]">Конкурент / ориентир</p>
+        </div>
+
+        {isUrl ? (
+          <a
+            href={source}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1.5 text-[11px] font-semibold text-[#7DD3FC] transition-colors hover:bg-[#38BDF8]/15"
+          >
+            Ссылка
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : (
+          <span className="rounded-full border border-[#2A3548] bg-[#10151F] px-3 py-1.5 text-[11px] font-semibold text-[#B6C0D4]">
+            {source || "Источник не указан"}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#38BDF8]">
+            Что делает
+          </p>
+          <p className="text-sm leading-6 text-[#E5E7EB]">{observation}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-3">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
+            Почему это важно
+          </p>
+          <p className="text-sm leading-6 text-[#E5E7EB]">{insight}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -132,29 +188,21 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       const { data: reportsData } = await supabase
         .from("reports")
-        .select("id, client_id, client_name, generated_at, status, analysis, scenarios")
+        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
         .order("generated_at", { ascending: false });
 
       if (!isMounted) return;
 
-      const normalizedRows: ReportRecord[] = ((reportsData as Array<{
-        id: string;
-        client_id: string | null;
-        client_name: string | null;
-        generated_at: string | null;
-        status: string | null;
-        analysis: unknown;
-        scenarios: unknown;
-      }> | null) ?? []).map((report) => ({
+      const normalizedRows: ReportRecord[] = ((reportsData as ReportRecord[] | null) ?? []).map((report) => ({
         id: report.id,
         client_id: report.client_id,
         client_name: report.client_name,
         generated_at: report.generated_at,
         status: report.status,
         analysis: report.analysis,
+        competitors: report.competitors,
+        trends: report.trends,
         scenarios: report.scenarios,
-        competitors: null,
-        trends: null,
       }));
 
       const mergedReports = dedupeReports(normalizedRows);
@@ -189,11 +237,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const activeReport = useMemo(
     () => normalizedReports.find((report) => report.id === selectedReportId) ?? normalizedReports[0],
     [normalizedReports, selectedReportId]
-  );
-
-  useMemo(
-    () => (activeReport ? getPlatformOptions(activeReport) : ["Все платформы"]),
-    [activeReport]
   );
 
   const filteredTrends = useMemo(() => {
@@ -254,8 +297,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     [filteredScenarios]
   );
 
-  const remainingItemsCount =
-    remainingTrends.length + remainingScenarios.length;
+  const remainingItemsCount = remainingTrends.length + remainingScenarios.length;
 
   const hasActiveFilters =
     selectedPlatform !== "Все платформы" ||
@@ -314,6 +356,36 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           />
         ) : (
           <div className="space-y-5">
+            {filteredCompetitors.length > 0 ? (
+              <SectionShell
+                id="competitors"
+                title="ИИ Трендвотчер — конкуренты"
+                subtitle="Первый блок показывает конкурентов в виде отдельных аккуратных карточек с разделённым текстом и понятными ссылками."
+                icon={<Target className="h-5 w-5" />}
+                accent="#38BDF8"
+              >
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {filteredCompetitors.map((item) => (
+                    <CompetitorHighlightCard
+                      key={item.id}
+                      name={item.name}
+                      source={item.source}
+                      observation={item.observation}
+                      insight={item.insight}
+                    />
+                  ))}
+                </div>
+
+                {viewMode === "detailed" && (
+                  <div className="mt-4 grid gap-4">
+                    {filteredCompetitors.map((item) => (
+                      <CompetitorCard key={`${item.id}-full`} item={item} viewMode={viewMode} />
+                    ))}
+                  </div>
+                )}
+              </SectionShell>
+            ) : null}
+
             {priorityTrends.length > 0 ? (
               <SectionShell
                 id="priority-trends"
@@ -325,22 +397,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
                 <div className="grid gap-4 xl:grid-cols-2">
                   {priorityTrends.map((item) => (
                     <TrendCard key={item.id} item={item} viewMode={viewMode} featured />
-                  ))}
-                </div>
-              </SectionShell>
-            ) : null}
-
-            {filteredCompetitors.length > 0 ? (
-              <SectionShell
-                id="competitors"
-                title="Большой блок конкурентов"
-                subtitle="Полный список конкурентных наблюдений вынесен выше сценариев, чтобы сначала смотреть рынок и только потом идеи для запуска."
-                icon={<Target className="h-5 w-5" />}
-                accent="#38BDF8"
-              >
-                <div className="grid gap-4">
-                  {filteredCompetitors.map((item) => (
-                    <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
                   ))}
                 </div>
               </SectionShell>
