@@ -7,20 +7,59 @@ interface ReportSummaryProps {
   report: NormalizedReport;
 }
 
-function extractLinks(value: string) {
-  return value.match(/https?:\/\/[^\s<]+/g) ?? [];
-}
+type ContentSegment =
+  | { type: "paragraph"; text: string }
+  | { type: "link"; url: string };
 
-function removeLinks(value: string) {
-  return value.replace(/https?:\/\/[^\s<]+/g, "").replace(/\s{2,}/g, " ").trim();
-}
-
-function splitIntoParagraphs(value: string) {
-  return removeLinks(value)
-    .replace(/\n{3,}/g, "\n\n")
-    .split(/\n{2,}|(?<=\.)\s+(?=[A-ZА-ЯЁ0-9«"])/g)
+function splitTextIntoSentences(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?])\s+(?=[A-ZА-ЯЁ0-9«"])/g)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function buildContentSegments(value: string): ContentSegment[] {
+  const normalized = value.replace(/\n+/g, " ").trim();
+  if (!normalized) return [];
+
+  const linkRegex = /https?:\/\/[^\s<]+/g;
+  const matches = Array.from(normalized.matchAll(linkRegex));
+
+  if (matches.length === 0) {
+    return splitTextIntoSentences(normalized).map((text) => ({
+      type: "paragraph",
+      text,
+    }));
+  }
+
+  const segments: ContentSegment[] = [];
+  let lastIndex = 0;
+
+  matches.forEach((match) => {
+    const url = match[0];
+    const start = match.index ?? 0;
+
+    const textBefore = normalized.slice(lastIndex, start).trim();
+    if (textBefore) {
+      splitTextIntoSentences(textBefore).forEach((text) => {
+        segments.push({ type: "paragraph", text });
+      });
+    }
+
+    segments.push({ type: "link", url });
+    lastIndex = start + url.length;
+  });
+
+  const textAfter = normalized.slice(lastIndex).trim();
+  if (textAfter) {
+    splitTextIntoSentences(textAfter).forEach((text) => {
+      segments.push({ type: "paragraph", text });
+    });
+  }
+
+  return segments;
 }
 
 function SummaryLinkCard({
@@ -34,8 +73,7 @@ function SummaryLinkCard({
   icon: React.ReactNode;
   color: string;
 }) {
-  const links = extractLinks(value);
-  const paragraphs = splitIntoParagraphs(value);
+  const segments = buildContentSegments(value);
 
   return (
     <div className="rounded-[28px] border border-[#2A3548] bg-[#10151F] p-4 sm:p-5">
@@ -64,44 +102,46 @@ function SummaryLinkCard({
 
           <div className="rounded-2xl border border-[#202938] bg-[#121822] p-4">
             <div className="space-y-3">
-              {paragraphs.length > 0 ? (
-                paragraphs.map((paragraph, index) => (
-                  <p
-                    key={`${label}-paragraph-${index}`}
-                    className={`text-sm leading-7 text-[#D9E1EE] ${
-                      index === 0 ? "text-base font-semibold text-white" : ""
-                    }`}
-                  >
-                    {paragraph}
-                  </p>
-                ))
+              {segments.length > 0 ? (
+                segments.map((segment, index) => {
+                  if (segment.type === "link") {
+                    return (
+                      <a
+                        key={`${label}-link-${index}`}
+                        href={segment.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex max-w-full items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition-all duration-200 hover:opacity-85"
+                        style={{
+                          color,
+                          background: `${color}12`,
+                          borderColor: `${color}28`,
+                        }}
+                      >
+                        <Link2 className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{segment.url}</span>
+                        <ArrowUpRight className="h-4 w-4 flex-shrink-0" />
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <p
+                      key={`${label}-paragraph-${index}`}
+                      className={`leading-7 ${
+                        index === 0
+                          ? "text-base font-semibold text-white"
+                          : "text-sm text-[#D9E1EE]"
+                      }`}
+                    >
+                      {segment.text}
+                    </p>
+                  );
+                })
               ) : (
-                <p className="text-base font-semibold text-white">Без краткого описания</p>
+                <p className="text-base font-semibold text-white">Без описания</p>
               )}
             </div>
-
-            {links.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {links.map((link) => (
-                  <a
-                    key={link}
-                    href={link}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:opacity-85"
-                    style={{
-                      color,
-                      background: `${color}12`,
-                      borderColor: `${color}28`,
-                    }}
-                  >
-                    <Link2 className="h-3.5 w-3.5" />
-                    <span className="max-w-[220px] truncate">{link}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
-                ))}
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
