@@ -9,7 +9,6 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import fallbackReports from "@/lib/reports_rows.json";
 import { supabase } from "@/integrations/supabase/client";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
@@ -227,8 +226,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       if (!isMounted) return;
 
       const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
-      const localRows = (fallbackReports as ReportRecord[]) ?? [];
-      const mergedReports = dedupeReports([...supabaseRows, ...localRows]);
+      const mergedReports = dedupeReports(supabaseRows);
       const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
       setReports(mergedReports);
