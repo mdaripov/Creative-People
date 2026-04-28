@@ -393,10 +393,7 @@ export function FormattedRichText({
         }
 
         return (
-          <div
-            key={key}
-            className="rounded-2xl border border-white/5 bg-white/[0.03] p-4"
-          >
+          <div key={key} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
             <h4 className="mb-3 text-sm font-semibold text-white sm:text-[15px]">
               {renderInlineFormatting(block.title, `${key}-section-title`, accent)}
             </h4>

@@ -33,7 +33,7 @@ export function AnalysisPanel({ analysis, summary }: AnalysisPanelProps) {
               Полный аналитический разбор
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[#AEB9CC]">
-              Сначала — короткий вывод, ниже — полный разбор в спокойном, читаемом формате.
+              Сначала — короткий вывод, ниже — полный разбор в едином спокойном стиле без визуального шума.
             </p>
           </div>
         </div>
@@ -48,31 +48,35 @@ export function AnalysisPanel({ analysis, summary }: AnalysisPanelProps) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-[24px] border border-[#2A3548] bg-[#10151F] p-3 sm:p-4">
-          <div>
-            <p className="text-sm font-semibold text-white">
-              {open ? "Полный анализ открыт" : "Открыть полный анализ"}
-            </p>
-            <p className="mt-1 text-xs text-[#8EA0BE]">
-              {open
-                ? "Ниже показан полный структурированный разбор."
-                : "Нажмите, чтобы развернуть весь аналитический текст."}
-            </p>
-          </div>
+        <div className="rounded-[24px] border border-[#2A3548] bg-[#10151F] p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">
+                {open ? "Полный анализ открыт" : "Открыть полный анализ"}
+              </p>
+              <p className="mt-1 text-xs text-[#8EA0BE]">
+                {open
+                  ? "Весь текст ниже показан как единая аккуратная читательская область."
+                  : "Нажмите, чтобы развернуть полный аналитический текст."}
+              </p>
+            </div>
 
-          <button
-            onClick={() => setOpen((value) => !value)}
-            className="inline-flex items-center gap-2 rounded-full border border-[#314056] bg-[#141B27] px-4 py-2 text-xs font-semibold text-[#D7DEEA] transition-colors hover:bg-[#182131]"
-          >
-            {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            {open ? "Скрыть" : "Развернуть"}
-          </button>
+            <button
+              onClick={() => setOpen((value) => !value)}
+              className="inline-flex items-center gap-2 rounded-full border border-[#314056] bg-[#141B27] px-4 py-2 text-xs font-semibold text-[#D7DEEA] transition-colors hover:bg-[#182131]"
+            >
+              {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {open ? "Скрыть" : "Развернуть"}
+            </button>
+          </div>
         </div>
 
         {open ? (
-          <div className="rounded-[28px] border border-[#2A3548] bg-[#0F141D] p-4 sm:p-6">
-            <div className="mx-auto max-w-4xl">
-              <FormattedRichText text={analysis} accent="#F472B6" />
+          <div className="rounded-[28px] border border-[#2A3548] bg-[#10151F] p-3 sm:p-4">
+            <div className="rounded-[24px] border border-[#202938] bg-[#121822] p-5 sm:p-6">
+              <div className="mx-auto max-w-4xl">
+                <FormattedRichText text={analysis} accent="#F472B6" compact />
+              </div>
             </div>
           </div>
         ) : null}
