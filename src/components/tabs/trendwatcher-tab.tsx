@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Loader2, Sparkles, Target, TrendingUp } from "lucide-react";
+import {
+  ClipboardList,
+  Database,
+  FileJson,
+  Loader2,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
@@ -51,6 +59,48 @@ function SectionShell({
   );
 }
 
+function DebugReportState({ report }: { report: ReportRecord }) {
+  const preview = JSON.stringify(
+    {
+      client_id: report.client_id,
+      client_name: report.client_name,
+      generated_at: report.generated_at,
+      status: report.status,
+      competitors: report.competitors,
+      trends: report.trends,
+      scenarios: report.scenarios,
+    },
+    null,
+    2
+  );
+
+  return (
+    <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-5 sm:p-6">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FBBF24]/30 bg-[#FBBF24]/10 text-[#FBBF24]">
+          <FileJson className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-white">Отчёт найден, но секции пустые</h3>
+          <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
+            Значит запись из базы пришла, но её структура пока не совпадает с ожидаемым форматом карточек.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-[#242424] bg-[#101010] p-4">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#7DD3FC]">
+          <Database className="h-3.5 w-3.5" />
+          Сырые данные из reports
+        </div>
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-[#D1D5DB]">
+          {preview}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
@@ -87,7 +137,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       setIsLoadingReports(false);
     };
 
-    fetchReports();
+    void fetchReports();
 
     return () => {
       isMounted = false;
@@ -112,6 +162,11 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const activeReport = useMemo(
     () => normalizedReports.find((report) => report.id === selectedReportId) ?? normalizedReports[0],
     [normalizedReports, selectedReportId]
+  );
+
+  const activeRawReport = useMemo(
+    () => reports.find((report) => report.id === selectedReportId) ?? reports[0],
+    [reports, selectedReportId]
   );
 
   const platformOptions = useMemo(
@@ -160,13 +215,31 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     );
   }
 
-  if (!activeReport) {
+  if (!activeReport || !activeRawReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
         <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-10 text-center">
           <ClipboardList className="mx-auto h-8 w-8 text-[#4B5563]" />
           <p className="mt-3 text-sm text-[#C5CEE0]">Для этого клиента пока нет оформленных инсайтов.</p>
         </div>
+      </div>
+    );
+  }
+
+  const hasVisibleSections =
+    activeReport.trends.length > 0 ||
+    activeReport.competitors.length > 0 ||
+    activeReport.scenarios.length > 0;
+
+  if (!hasVisibleSections) {
+    return (
+      <div className="animate-fade-in space-y-5 p-4 sm:p-6">
+        <ReportSwitcher
+          reports={normalizedReports}
+          selectedReportId={activeReport.id}
+          onSelectReport={setSelectedReportId}
+        />
+        <DebugReportState report={activeRawReport} />
       </div>
     );
   }
