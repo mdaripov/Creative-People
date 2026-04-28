@@ -1,16 +1,46 @@
 "use client";
 
-import { ArrowUpRight, Rocket, Sparkles, Target } from "lucide-react";
+import { ArrowUpRight, Link2, Rocket, Sparkles, Target } from "lucide-react";
 import type { NormalizedReport } from "@/lib/trendwatcher";
 
 interface ReportSummaryProps {
   report: NormalizedReport;
 }
 
-function cleanLinkTarget(value: string) {
-  const trimmed = value.trim();
-  const match = trimmed.match(/https?:\/\/[^\s<]+/);
-  return match?.[0] ?? null;
+function extractLinks(value: string) {
+  return value.match(/https?:\/\/[^\s<]+/g) ?? [];
+}
+
+function renderLinkedText(value: string, color: string) {
+  const links = extractLinks(value);
+
+  if (links.length === 0) {
+    return <p className="text-sm leading-6 text-[#E5E7EB]">{value}</p>;
+  }
+
+  const firstLink = links[0];
+  const label = value.replace(firstLink, "").trim() || firstLink;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm leading-6 text-[#E5E7EB]">{label}</p>
+      <a
+        href={firstLink}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:opacity-85"
+        style={{
+          color,
+          background: `${color}12`,
+          borderColor: `${color}28`,
+        }}
+      >
+        <Link2 className="h-3.5 w-3.5" />
+        <span className="max-w-[280px] truncate">{firstLink}</span>
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </a>
+    </div>
+  );
 }
 
 function SummaryLinkCard({
@@ -24,15 +54,11 @@ function SummaryLinkCard({
   icon: React.ReactNode;
   color: string;
 }) {
-  const href = cleanLinkTarget(value);
-  const content = (
-    <div className="group rounded-3xl border border-[#2A3548] bg-[#10151F] p-4 transition-all duration-200 hover:border-[#3A4660] hover:bg-[#121925]">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EA0BE]">
-        {label}
-      </p>
+  return (
+    <div className="rounded-[28px] border border-[#2A3548] bg-[#10151F] p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <div
-          className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border"
           style={{
             color,
             background: `${color}14`,
@@ -41,28 +67,25 @@ function SummaryLinkCard({
         >
           {icon}
         </div>
+
         <div className="min-w-0 flex-1">
-          <p className="text-sm leading-6 text-[#E5E7EB] break-words">{value}</p>
-          {href ? (
-            <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity group-hover:opacity-80" style={{ color }}>
-              Открыть ссылку
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </div>
-          ) : null}
+          <div className="mb-3 flex items-center gap-2">
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EA0BE]">
+              {label}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#202938] bg-[#121822] p-4">
+            {renderLinkedText(value, color)}
+          </div>
         </div>
       </div>
     </div>
   );
-
-  if (href) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer noopener" className="block">
-        {content}
-      </a>
-    );
-  }
-
-  return content;
 }
 
 export function ReportSummary({ report }: ReportSummaryProps) {
@@ -73,7 +96,7 @@ export function ReportSummary({ report }: ReportSummaryProps) {
 
   return (
     <div className="rounded-[32px] border border-[#273246] bg-[#141B28] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-7">
-      <div className="max-w-4xl">
+      <div className="max-w-5xl">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/24 bg-[#38BDF8]/12 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
             <Sparkles className="h-3.5 w-3.5" />

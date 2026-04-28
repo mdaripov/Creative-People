@@ -5,14 +5,12 @@ import { Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
-import { FilterBar } from "@/components/trendwatcher/filter-bar";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
 import {
-  getPlatformOptions,
   getMatchScore,
   normalizeReport,
   type ReportRecord,
@@ -120,10 +118,10 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
-  const [selectedPlatform, setSelectedPlatform] = useState("Все платформы");
-  const [selectedPriority, setSelectedPriority] = useState<"all" | TrendPriority>("all");
-  const [selectedType, setSelectedType] = useState<FeedType>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("overview");
+  const [selectedPlatform] = useState("Все платформы");
+  const [selectedPriority] = useState<"all" | TrendPriority>("all");
+  const [selectedType] = useState<FeedType>("all");
+  const [viewMode] = useState<ViewMode>("overview");
 
   useEffect(() => {
     let isMounted = true;
@@ -192,11 +190,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     [normalizedReports, selectedReportId]
   );
 
-  const platformOptions = useMemo(
-    () => (activeReport ? getPlatformOptions(activeReport) : ["Все платформы"]),
-    [activeReport]
-  );
-
   const filteredTrends = useMemo(() => {
     if (!activeReport) return [];
 
@@ -258,17 +251,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const remainingItemsCount =
     remainingTrends.length + remainingScenarios.length;
 
-  const hasActiveFilters =
-    selectedPlatform !== "Все платформы" ||
-    selectedPriority !== "all" ||
-    selectedType !== "all";
-
-  const handleResetFilters = () => {
-    setSelectedPlatform("Все платформы");
-    setSelectedPriority("all");
-    setSelectedType("all");
-  };
-
   const analysisSummary =
     activeReport?.analysis.split("\n").find((line) => line.trim()) ||
     activeReport?.summary.primaryFocus ||
@@ -303,20 +285,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           onSelectReport={setSelectedReportId}
         />
 
-        <FilterBar
-          platforms={platformOptions}
-          selectedPlatform={selectedPlatform}
-          onPlatformChange={setSelectedPlatform}
-          selectedPriority={selectedPriority}
-          onPriorityChange={setSelectedPriority}
-          selectedType={selectedType}
-          onTypeChange={setSelectedType}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          hasActiveFilters={hasActiveFilters}
-          onReset={handleResetFilters}
-        />
-
         <ReportSummary report={activeReport} />
 
         {filteredTrends.length === 0 &&
@@ -325,7 +293,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           <EmptyFilterState
             title="По текущим фильтрам ничего не найдено"
             description="Сейчас лента пуста, потому что выбранные фильтры слишком узкие для этого отчёта. Сбросьте их и вернитесь к полному обзору."
-            onReset={handleResetFilters}
+            onReset={() => undefined}
           />
         ) : (
           <div className="space-y-5">
