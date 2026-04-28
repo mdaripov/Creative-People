@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Database,
   FileText,
   Loader2,
   Sparkles,
@@ -72,73 +71,10 @@ function SectionShell({
   );
 }
 
-function ReportsDebugPanel({
-  clientName,
-  clientId,
-  reports,
-  matchedCount,
-}: {
-  clientName: string;
-  clientId: string;
-  reports: ReportRecord[];
-  matchedCount: number;
-}) {
-  return (
-    <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
-      <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
-          <Database className="h-4 w-4" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
-          <p className="text-xs text-[#8B93A7]">
-            Всего загружено: {reports.length} · Совпало для клиента: {matchedCount}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
-            Выбранный клиент
-          </p>
-          <p className="mt-2 text-sm text-white">name: {clientName}</p>
-          <p className="mt-1 text-sm text-[#B6C0D4]">id: {clientId}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
-            Записи из reports
-          </p>
-          <div className="mt-2 space-y-2">
-            {reports.map((report) => (
-              <div
-                key={report.id}
-                className="rounded-2xl border border-[#242424] bg-[#151515] px-3 py-3"
-              >
-                <p className="text-sm font-medium text-white">
-                  {report.client_name || "Без client_name"}
-                </p>
-                <p className="mt-1 text-xs text-[#8B93A7]">
-                  client_id: {report.client_id || "—"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function EmptyReportState({
   clientName,
-  matchedCount,
-  totalCount,
 }: {
   clientName: string;
-  matchedCount: number;
-  totalCount: number;
 }) {
   return (
     <div className="space-y-5">
@@ -152,10 +88,6 @@ function EmptyReportState({
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
               Для клиента {clientName} не найдено совпадающих записей в reports.
             </p>
-            <div className="mt-4 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4 text-sm text-[#8B93A7]">
-              <p>Всего загружено отчётов: {totalCount}</p>
-              <p>Совпадений для этого клиента: {matchedCount}</p>
-            </div>
           </div>
         </div>
       </section>
@@ -187,7 +119,6 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
-  const [reports, setReports] = useState<ReportRecord[]>([]);
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -231,7 +162,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const mergedReports = dedupeReports(normalizedRows);
       const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
-      setReports(mergedReports);
       setMatchedReports(nextMatchedReports);
       setIsLoadingReports(false);
     };
@@ -312,31 +242,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <ReportsDebugPanel
-          clientName={data.client.name}
-          clientId={data.client.id}
-          reports={reports}
-          matchedCount={matchedReports.length}
-        />
-
-        <EmptyReportState
-          clientName={data.client.name}
-          matchedCount={matchedReports.length}
-          totalCount={reports.length}
-        />
+        <EmptyReportState clientName={data.client.name} />
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-      <ReportsDebugPanel
-        clientName={data.client.name}
-        clientId={data.client.id}
-        reports={reports}
-        matchedCount={matchedReports.length}
-      />
-
       <ReportSummary report={activeReport} />
 
       <ReportSwitcher
