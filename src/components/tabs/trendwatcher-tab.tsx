@@ -9,7 +9,6 @@ import { FilterBar } from "@/components/trendwatcher/filter-bar";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
-import reportsRows from "@/lib/reports_rows.json";
 import {
   getMatchScore,
   getPlatformOptions,
@@ -60,8 +59,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [selectedPriority, setSelectedPriority] = useState<"all" | TrendPriority>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
 
-  const localReports = reportsRows as ReportRecord[];
-
   useEffect(() => {
     let isMounted = true;
 
@@ -98,11 +95,8 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
-    const sourceReports = reports.length > 0 ? reports : localReports;
-    const sourceLabel = reports.length > 0 ? "Данные из Supabase" : "Подготовленный отчёт";
-
-    return sourceReports.map((report) => normalizeReport(report, sourceLabel));
-  }, [reports, localReports]);
+    return reports.map((report) => normalizeReport(report, "Данные из Supabase"));
+  }, [reports]);
 
   useEffect(() => {
     if (!normalizedReports.length) {
