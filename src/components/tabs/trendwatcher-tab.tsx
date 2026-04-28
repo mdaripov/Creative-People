@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Database,
-  ExternalLink,
-  Loader2,
-  Sparkles,
-  Target,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
+import { ExternalLink, Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
@@ -19,16 +10,14 @@ import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
-import {
-  getMatchScore,
-  normalizeReport,
-  type ReportRecord,
-  type TrendPriority,
-  type ViewMode,
-} from "@/lib/trendwatcher";
+import { normalizeReport, type ReportRecord, type TrendPriority, type ViewMode } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
 
 type FeedType = "all" | "trends" | "competitors" | "scenarios";
+
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 function dedupeReports(reports: ReportRecord[]) {
   const map = new Map<string, ReportRecord>();
@@ -41,74 +30,6 @@ function dedupeReports(reports: ReportRecord[]) {
   });
 
   return Array.from(map.values());
-}
-
-function normalizeValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
-  const normalizedClientId = normalizeValue(clientId);
-  const normalizedClientName = normalizeValue(clientName);
-
-  const exactIdMatches = reports.filter(
-    (report) => normalizeValue(report.client_id) === normalizedClientId
-  );
-
-  if (exactIdMatches.length > 0) {
-    return exactIdMatches.sort((a, b) =>
-      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
-    );
-  }
-
-  const exactNameMatches = reports.filter(
-    (report) => normalizeValue(report.client_name) === normalizedClientName
-  );
-
-  if (exactNameMatches.length > 0) {
-    return exactNameMatches.sort((a, b) =>
-      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
-    );
-  }
-
-  const partialMatches = reports.filter((report) => {
-    const reportClientId = normalizeValue(report.client_id);
-    const reportClientName = normalizeValue(report.client_name);
-
-    return (
-      (reportClientId && reportClientId.includes(normalizedClientId)) ||
-      (normalizedClientId && normalizedClientId.includes(reportClientId)) ||
-      (reportClientName && reportClientName.includes(normalizedClientName)) ||
-      (normalizedClientName && normalizedClientName.includes(reportClientName))
-    );
-  });
-
-  if (partialMatches.length > 0) {
-    return partialMatches.sort((a, b) =>
-      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
-    );
-  }
-
-  const scoredReports = reports
-    .map((report) => ({
-      report,
-      score: getMatchScore(report, clientName, clientId),
-    }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.report.generated_at ?? "").localeCompare(a.report.generated_at ?? "");
-    });
-
-  if (scoredReports.length === 0) {
-    return [];
-  }
-
-  const bestScore = scoredReports[0].score;
-
-  return scoredReports
-    .filter((item) => item.score >= Math.max(bestScore - 20, 50))
-    .map((item) => item.report);
 }
 
 function SectionShell({
@@ -205,79 +126,18 @@ function CompetitorHighlightCard({
   );
 }
 
-function ReportDiagnostics({
-  totalReports,
-  matchedReports,
-  clientId,
-  clientName,
-}: {
-  totalReports: number;
-  matchedReports: number;
-  clientId: string;
-  clientName: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-[#2A3548] bg-[#121821] p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Database className="h-4 w-4 text-[#38BDF8]" />
-        <p className="text-sm font-semibold text-white">Диагностика загрузки</p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиент ID</p>
-          <p className="mt-2 text-sm font-medium text-white break-all">{clientId}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиент name</p>
-          <p className="mt-2 text-sm font-medium text-white break-all">{clientName}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Всего reports</p>
-          <p className="mt-2 text-sm font-medium text-white">{totalReports}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Совпало</p>
-          <p className="mt-2 text-sm font-medium text-white">{matchedReports}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyReportState({
-  clientName,
-  totalReports,
-  clientId,
-}: {
-  clientName: string;
-  totalReports: number;
-  clientId: string;
-}) {
+function EmptyReportState({ clientName }: { clientName: string }) {
   return (
     <div className="space-y-5">
-      <ReportDiagnostics
-        totalReports={totalReports}
-        matchedReports={0}
-        clientId={clientId}
-        clientName={clientName}
-      />
-
-      <section className="rounded-[28px] border border-[#5B2C2C] bg-[#1D1414] p-6 sm:p-8">
+      <section className="rounded-[28px] border border-[#2A3548] bg-[#171E2A] p-6 sm:p-8">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#EF4444]/25 bg-[#EF4444]/10 text-[#F87171]">
-            <AlertTriangle className="h-5 w-5" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
+            <TrendingUp className="h-5 w-5" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#E5B4B4]">
-              Для клиента {clientName} не найдено совпадающих записей в reports.
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-[#D1A0A0]">
-              Это уже не проблема оформления: из базы пришло {totalReports} записей, но ни одна не совпала по client_id/client_name с текущим клиентом.
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
+              Для клиента {clientName} в таблице reports сейчас нет подходящей записи.
             </p>
           </div>
         </div>
@@ -287,7 +147,6 @@ function EmptyReportState({
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
-  const [allReportsCount, setAllReportsCount] = useState(0);
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -302,6 +161,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     const fetchReports = async () => {
       setIsLoadingReports(true);
 
+      const normalizedClientName = normalizeValue(data.client.name);
+      const normalizedClientId = normalizeValue(data.client.id);
+
       const { data: reportsData } = await supabase
         .from("reports")
         .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
@@ -309,23 +171,36 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       if (!isMounted) return;
 
-      const normalizedRows: ReportRecord[] = ((reportsData as ReportRecord[] | null) ?? []).map((report) => ({
-        id: report.id,
-        client_id: report.client_id,
-        client_name: report.client_name,
-        generated_at: report.generated_at,
-        status: report.status,
-        analysis: report.analysis,
-        competitors: report.competitors,
-        trends: report.trends,
-        scenarios: report.scenarios,
-      }));
+      const reports = dedupeReports((reportsData as ReportRecord[] | null) ?? []);
 
-      const mergedReports = dedupeReports(normalizedRows);
-      const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
+      const exactNameMatches = reports.filter(
+        (report) => normalizeValue(report.client_name) === normalizedClientName
+      );
 
-      setAllReportsCount(mergedReports.length);
-      setMatchedReports(nextMatchedReports);
+      const exactIdMatches = reports.filter(
+        (report) => normalizeValue(report.client_id) === normalizedClientId
+      );
+
+      const partialMatches = reports.filter((report) => {
+        const reportName = normalizeValue(report.client_name);
+        const reportId = normalizeValue(report.client_id);
+
+        return (
+          reportName.includes(normalizedClientName) ||
+          normalizedClientName.includes(reportName) ||
+          reportId.includes(normalizedClientId) ||
+          normalizedClientId.includes(reportId)
+        );
+      });
+
+      const nextReports =
+        exactNameMatches.length > 0
+          ? exactNameMatches
+          : exactIdMatches.length > 0
+          ? exactIdMatches
+          : partialMatches;
+
+      setMatchedReports(nextReports);
       setIsLoadingReports(false);
     };
 
@@ -416,11 +291,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
   const remainingItemsCount = remainingTrends.length + remainingScenarios.length;
 
-  const hasActiveFilters =
-    selectedPlatform !== "Все платформы" ||
-    selectedPriority !== "all" ||
-    selectedType !== "all";
-
   const handleResetFilters = () => {
     setSelectedPlatform("Все платформы");
     setSelectedPriority("all");
@@ -447,11 +317,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <EmptyReportState
-          clientName={data.client.name}
-          totalReports={allReportsCount}
-          clientId={data.client.id}
-        />
+        <EmptyReportState clientName={data.client.name} />
       </div>
     );
   }
@@ -459,13 +325,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   return (
     <div className="animate-fade-in h-full overflow-y-auto bg-[#0D121A]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
-        <ReportDiagnostics
-          totalReports={allReportsCount}
-          matchedReports={normalizedReports.length}
-          clientId={data.client.id}
-          clientName={data.client.name}
-        />
-
         <ReportSwitcher
           reports={normalizedReports}
           selectedReportId={activeReport.id}
