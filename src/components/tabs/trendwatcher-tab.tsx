@@ -5,7 +5,6 @@ import { Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
-import { FilterBar } from "@/components/trendwatcher/filter-bar";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
@@ -123,7 +122,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [selectedPlatform, setSelectedPlatform] = useState("Все платформы");
   const [selectedPriority, setSelectedPriority] = useState<"all" | TrendPriority>("all");
   const [selectedType, setSelectedType] = useState<FeedType>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("overview");
+  const [viewMode] = useState<ViewMode>("overview");
 
   useEffect(() => {
     let isMounted = true;
@@ -192,7 +191,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     [normalizedReports, selectedReportId]
   );
 
-  const platformOptions = useMemo(
+  useMemo(
     () => (activeReport ? getPlatformOptions(activeReport) : ["Все платформы"]),
     [activeReport]
   );
@@ -301,20 +300,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
           reports={normalizedReports}
           selectedReportId={activeReport.id}
           onSelectReport={setSelectedReportId}
-        />
-
-        <FilterBar
-          platforms={platformOptions}
-          selectedPlatform={selectedPlatform}
-          onPlatformChange={setSelectedPlatform}
-          selectedPriority={selectedPriority}
-          onPriorityChange={setSelectedPriority}
-          selectedType={selectedType}
-          onTypeChange={setSelectedType}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          hasActiveFilters={hasActiveFilters}
-          onReset={handleResetFilters}
         />
 
         <ReportSummary report={activeReport} />
