@@ -15,28 +15,12 @@ function removeLinks(value: string) {
   return value.replace(/https?:\/\/[^\s<]+/g, "").replace(/\s{2,}/g, " ").trim();
 }
 
-function splitIntoChunks(value: string) {
+function splitIntoParagraphs(value: string) {
   return removeLinks(value)
-    .replace(/\n+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .split(/\n{2,}|(?<=\.)\s+(?=[A-ZА-ЯЁ0-9«"])/g)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function buildTitleAndPoints(value: string) {
-  const parts = splitIntoChunks(value);
-
-  if (parts.length === 0) {
-    return {
-      title: "Без краткого описания",
-      points: [],
-    };
-  }
-
-  return {
-    title: parts[0],
-    points: parts.slice(1),
-  };
 }
 
 function SummaryLinkCard({
@@ -51,7 +35,7 @@ function SummaryLinkCard({
   color: string;
 }) {
   const links = extractLinks(value);
-  const { title, points } = buildTitleAndPoints(value);
+  const paragraphs = splitIntoParagraphs(value);
 
   return (
     <div className="rounded-[28px] border border-[#2A3548] bg-[#10151F] p-4 sm:p-5">
@@ -79,24 +63,22 @@ function SummaryLinkCard({
           </div>
 
           <div className="rounded-2xl border border-[#202938] bg-[#121822] p-4">
-            <p className="text-base font-semibold leading-7 text-white">{title}</p>
-
-            {points.length > 0 ? (
-              <div className="mt-4 space-y-2">
-                {points.map((point, index) => (
-                  <div
-                    key={`${label}-point-${index}`}
-                    className="flex items-start gap-3 rounded-2xl border border-[#263245] bg-[#0F141C] px-3 py-3"
+            <div className="space-y-3">
+              {paragraphs.length > 0 ? (
+                paragraphs.map((paragraph, index) => (
+                  <p
+                    key={`${label}-paragraph-${index}`}
+                    className={`text-sm leading-7 text-[#D9E1EE] ${
+                      index === 0 ? "text-base font-semibold text-white" : ""
+                    }`}
                   >
-                    <span
-                      className="mt-1 h-2 w-2 flex-shrink-0 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                    <p className="text-sm leading-6 text-[#D9E1EE]">{point}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+                    {paragraph}
+                  </p>
+                ))
+              ) : (
+                <p className="text-base font-semibold text-white">Без краткого описания</p>
+              )}
+            </div>
 
             {links.length > 0 ? (
               <div className="mt-4 flex flex-wrap gap-2">
