@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  Database,
+  ExternalLink,
+  Loader2,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
@@ -67,10 +76,10 @@ function getClientReports(reports: ReportRecord[], clientName: string, clientId:
     const reportClientName = normalizeValue(report.client_name);
 
     return (
-      reportClientId.includes(normalizedClientId) ||
-      normalizedClientId.includes(reportClientId) ||
-      reportClientName.includes(normalizedClientName) ||
-      normalizedClientName.includes(reportClientName)
+      (reportClientId && reportClientId.includes(normalizedClientId)) ||
+      (normalizedClientId && normalizedClientId.includes(reportClientId)) ||
+      (reportClientName && reportClientName.includes(normalizedClientName)) ||
+      (normalizedClientName && normalizedClientName.includes(reportClientName))
     );
   });
 
@@ -196,18 +205,79 @@ function CompetitorHighlightCard({
   );
 }
 
-function EmptyReportState({ clientName }: { clientName: string }) {
+function ReportDiagnostics({
+  totalReports,
+  matchedReports,
+  clientId,
+  clientName,
+}: {
+  totalReports: number;
+  matchedReports: number;
+  clientId: string;
+  clientName: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-[#2A3548] bg-[#121821] p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Database className="h-4 w-4 text-[#38BDF8]" />
+        <p className="text-sm font-semibold text-white">Диагностика загрузки</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиент ID</p>
+          <p className="mt-2 text-sm font-medium text-white break-all">{clientId}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиент name</p>
+          <p className="mt-2 text-sm font-medium text-white break-all">{clientName}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Всего reports</p>
+          <p className="mt-2 text-sm font-medium text-white">{totalReports}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#212C3B] bg-[#10151F] p-3">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Совпало</p>
+          <p className="mt-2 text-sm font-medium text-white">{matchedReports}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyReportState({
+  clientName,
+  totalReports,
+  clientId,
+}: {
+  clientName: string;
+  totalReports: number;
+  clientId: string;
+}) {
   return (
     <div className="space-y-5">
-      <section className="rounded-[28px] border border-[#2A3548] bg-[#171E2A] p-6 sm:p-8">
+      <ReportDiagnostics
+        totalReports={totalReports}
+        matchedReports={0}
+        clientId={clientId}
+        clientName={clientName}
+      />
+
+      <section className="rounded-[28px] border border-[#5B2C2C] bg-[#1D1414] p-6 sm:p-8">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
-            <TrendingUp className="h-5 w-5" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#EF4444]/25 bg-[#EF4444]/10 text-[#F87171]">
+            <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#E5B4B4]">
               Для клиента {clientName} не найдено совпадающих записей в reports.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[#D1A0A0]">
+              Это уже не проблема оформления: из базы пришло {totalReports} записей, но ни одна не совпала по client_id/client_name с текущим клиентом.
             </p>
           </div>
         </div>
@@ -217,6 +287,7 @@ function EmptyReportState({ clientName }: { clientName: string }) {
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
+  const [allReportsCount, setAllReportsCount] = useState(0);
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -253,6 +324,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const mergedReports = dedupeReports(normalizedRows);
       const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
+      setAllReportsCount(mergedReports.length);
       setMatchedReports(nextMatchedReports);
       setIsLoadingReports(false);
     };
@@ -375,7 +447,11 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <EmptyReportState clientName={data.client.name} />
+        <EmptyReportState
+          clientName={data.client.name}
+          totalReports={allReportsCount}
+          clientId={data.client.id}
+        />
       </div>
     );
   }
@@ -383,6 +459,13 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   return (
     <div className="animate-fade-in h-full overflow-y-auto bg-[#0D121A]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
+        <ReportDiagnostics
+          totalReports={allReportsCount}
+          matchedReports={normalizedReports.length}
+          clientId={data.client.id}
+          clientName={data.client.name}
+        />
+
         <ReportSwitcher
           reports={normalizedReports}
           selectedReportId={activeReport.id}
