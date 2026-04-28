@@ -150,7 +150,7 @@ export function ReportSummary({ report }: ReportSummaryProps) {
           ИИ Трендвотчер для {report.title}
         </h2>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 space-y-4">
           <SummaryLinkCard
             label="Сначала смотреть"
             value={report.summary.primaryFocus}
