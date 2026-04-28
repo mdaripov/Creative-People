@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  ArrowLeft,
-  ArrowUpRight,
+  AlertTriangle,
   BarChart3,
   Briefcase,
   CheckCircle2,
@@ -11,18 +10,12 @@ import {
   FileText,
   Loader2,
   ShieldAlert,
-  Siren,
-  Sparkles,
   TrendingUp,
-  UserRound,
   Users,
 } from "lucide-react";
 import { useManagerDashboard } from "@/hooks/use-manager-dashboard";
-import {
-  formatTrackedTime,
-  getProgressPercent,
-  type HealthStatus,
-} from "@/lib/manager-dashboard";
+import { ManagerHero } from "@/components/manager/manager-hero";
+import { ManagerDetailPanel } from "@/components/manager/manager-detail-panel";
 import { StatusBadge } from "@/components/manager/status-badge";
 
 interface ManagerDashboardProps {
@@ -34,7 +27,7 @@ type DashboardCard =
   | { type: "specialist"; id: string }
   | { type: "attention"; id: string };
 
-function toneStyles(tone: HealthStatus | "neutral") {
+function toneStyles(tone: "green" | "yellow" | "red" | "neutral") {
   if (tone === "green") {
     return {
       color: "#34D399",
@@ -66,43 +59,21 @@ function toneStyles(tone: HealthStatus | "neutral") {
   };
 }
 
-function KpiTile({
-  label,
-  value,
-  note,
-  tone,
-  icon,
-}: {
-  label: string;
-  value: number;
-  note: string;
-  tone: HealthStatus | "neutral";
-  icon: React.ReactNode;
-}) {
-  const styles = toneStyles(tone);
-
-  return (
-    <div className="rounded-[28px] border border-[#242424] bg-[#151515] p-5">
-      <div
-        className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border"
-        style={{
-          color: styles.color,
-          background: styles.bg,
-          borderColor: styles.border,
-        }}
-      >
-        {icon}
-      </div>
-      <p className="text-3xl font-semibold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-sm font-medium text-white">{label}</p>
-      <p className="mt-1 text-xs leading-relaxed text-[#8B93A7]">{note}</p>
-    </div>
-  );
-}
+const kpiIcons = {
+  "active-companies": Briefcase,
+  "specialists-working": Users,
+  "without-report": FileText,
+  "yellow-red-zone": AlertTriangle,
+  "plan-fact": TrendingUp,
+  "controller-escalations": ClipboardCheck,
+};
 
 export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
   const { data, loading, controllerTablesMissing } = useManagerDashboard();
   const [selectedCard, setSelectedCard] = useState<DashboardCard | null>(null);
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [specialistFilter, setSpecialistFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const company = useMemo(() => {
     if (!data || selectedCard?.type !== "company") return null;
@@ -118,6 +89,31 @@ export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
     if (!data || selectedCard?.type !== "attention") return null;
     return data.attentionItems.find((item) => item.id === selectedCard.id) ?? null;
   }, [data, selectedCard]);
+
+  const specialistNames = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.companies.map((item) => item.assignedSpecialistName))).filter(Boolean);
+  }, [data]);
+
+  const filteredCompanies = useMemo(() => {
+    if (!data) return [];
+
+    const items = data.companies.filter((item) => {
+      const matchesStatus = companyFilter === "all" || item.healthStatus === companyFilter;
+      const matchesSpecialist =
+        specialistFilter === "all" || item.assignedSpecialistName === specialistFilter;
+      const matchesSearch =
+        item.companyName.toLowerCase().includes(search.toLowerCase()) ||
+        item.assignedSpecialistName.toLowerCase().includes(search.toLowerCase());
+
+      return matchesStatus && matchesSpecialist && matchesSearch;
+    });
+
+    const weight = { red: 0, yellow: 1, green: 2 };
+    return [...items].sort((a, b) => weight[a.healthStatus] - weight[b.healthStatus]);
+  }, [companyFilter, data, search, specialistFilter]);
+
+  const hasDetail = Boolean(company || specialist || attention);
 
   if (loading) {
     return (
@@ -140,199 +136,426 @@ export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
     );
   }
 
-  const hasDetail = Boolean(company || specialist || attention);
+  if (hasDetail) {
+    return (
+      <div className="h-full overflow-y-auto bg-[#0F0F0F] p-4 sm:p-6 animate-fade-in">
+        <div className="mx-auto max-w-[1400px]">
+          <ManagerDetailPanel
+            company={company}
+            specialist={specialist}
+            attention={attention}
+            onBack={() => setSelectedCard(null)}
+            onOpenClient={onOpenClient}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto bg-[#0F0F0F] p-4 sm:p-6 animate-fade-in">
       <div className="mx-auto max-w-[1600px] space-y-5">
-        <div className="rounded-[32px] border border-[#1E1E1E] bg-[#13151A] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-4xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-4 py-1.5 text-[11px] font-semibold text-[#7DD3FC]">
+        <ManagerHero hero={data.hero} />
+
+        <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
                 <BarChart3 className="h-3.5 w-3.5" />
-                Executive overview
+                Ключевые KPI
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Единый dashboard руководителя
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#9FA8BB] sm:text-base">
-                Один экран для быстрого контроля агентства: важные сигналы, компании, команда и статус контроллера.
-                Нажмите на любую карточку, чтобы провалиться в детали.
-              </p>
+              <h2 className="text-xl font-semibold text-white">Что происходит прямо сейчас</h2>
             </div>
-
-            {hasDetail ? (
-              <button
-                onClick={() => setSelectedCard(null)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-3 text-sm font-semibold text-[#C9D1E1] transition-colors hover:bg-[#1A1A1A]"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Назад к dashboard
-              </button>
-            ) : (
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-4 py-2 text-sm font-medium text-[#34D399]">
-                <Sparkles className="h-4 w-4" />
-                Нажмите на карточку для деталей
-              </div>
-            )}
           </div>
-        </div>
 
-        {!hasDetail ? (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-              <KpiTile
-                label={data.kpis[0]?.label ?? "Активных компаний"}
-                value={data.kpis[0]?.value ?? 0}
-                note={data.kpis[0]?.note ?? ""}
-                tone={data.kpis[0]?.tone ?? "neutral"}
-                icon={<Briefcase className="h-5 w-5" />}
-              />
-              <KpiTile
-                label={data.kpis[1]?.label ?? "В зелёной зоне"}
-                value={data.kpis[1]?.value ?? 0}
-                note={data.kpis[1]?.note ?? ""}
-                tone={data.kpis[1]?.tone ?? "green"}
-                icon={<CheckCircle2 className="h-5 w-5" />}
-              />
-              <KpiTile
-                label={data.kpis[2]?.label ?? "В зоне риска"}
-                value={data.kpis[2]?.value ?? 0}
-                note={data.kpis[2]?.note ?? ""}
-                tone={data.kpis[2]?.tone ?? "yellow"}
-                icon={<Siren className="h-5 w-5" />}
-              />
-              <KpiTile
-                label={data.kpis[3]?.label ?? "SMM в работе"}
-                value={data.kpis[3]?.value ?? 0}
-                note={data.kpis[3]?.note ?? ""}
-                tone={data.kpis[3]?.tone ?? "neutral"}
-                icon={<Users className="h-5 w-5" />}
-              />
-              <KpiTile
-                label={data.kpis[4]?.label ?? "Без отчёта за сегодня"}
-                value={data.kpis[4]?.value ?? 0}
-                note={data.kpis[4]?.note ?? ""}
-                tone={data.kpis[4]?.tone ?? "red"}
-                icon={<FileText className="h-5 w-5" />}
-              />
-              <KpiTile
-                label={data.kpis[5]?.label ?? "Эскалации контроллера"}
-                value={data.kpis[5]?.value ?? 0}
-                note={data.kpis[5]?.note ?? ""}
-                tone={data.kpis[5]?.tone ?? "red"}
-                icon={<ClipboardCheck className="h-5 w-5" />}
-              />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            {data.kpis.map((item) => {
+              const Icon = kpiIcons[item.id as keyof typeof kpiIcons] ?? BarChart3;
+              const styles = toneStyles(item.tone);
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-[28px] border border-[#232323] bg-[#181818] p-5"
+                >
+                  <div
+                    className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border"
+                    style={{
+                      color: styles.color,
+                      background: styles.bg,
+                      borderColor: styles.border,
+                    }}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-3xl font-semibold tracking-tight text-white">{item.value}</p>
+                  <p className="mt-2 text-sm font-medium text-white">{item.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[#8B93A7]">{item.note}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-[32px] border border-[#3A2222] bg-[#181314] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#F87171]/25 bg-[#F87171]/10 px-3 py-1 text-[11px] font-semibold text-[#FCA5A5]">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Требует внимания
+              </div>
+              <h2 className="text-xl font-semibold text-white">Критичные сигналы</h2>
             </div>
+            <span className="text-sm text-[#D1B5B5]">{data.attentionItems.length}</span>
+          </div>
 
-            <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-              <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#F87171]/20 bg-[#F87171]/10 px-3 py-1 text-[11px] font-semibold text-[#FCA5A5]">
-                      <ShieldAlert className="h-3.5 w-3.5" />
-                      Важные сигналы
+          {data.attentionItems.length > 0 ? (
+            <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+              {data.attentionItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedCard({ type: "attention", id: item.id })}
+                  className="rounded-3xl border border-[#42282A] bg-[#141010] p-4 text-left transition-all duration-200 hover:border-[#F87171]/30 hover:bg-[#1B1415]"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#F87171]/20 bg-[#F87171]/10 text-[#F87171]">
+                      <ShieldAlert className="h-4 w-4" />
                     </div>
-                    <h2 className="text-xl font-semibold text-white">Требует внимания</h2>
+                    <StatusBadge status={item.tone} />
                   </div>
-                  <span className="text-sm text-[#8B93A7]">{data.attentionItems.length}</span>
+                  <p className="text-sm font-semibold text-white">{item.title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[#C9B3B5]">
+                    {item.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#121212] p-6 text-sm text-[#8B93A7]">
+              Критичных сигналов сейчас нет.
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+          <div className="mb-5">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
+              <Users className="h-3.5 w-3.5" />
+              Команда
+            </div>
+            <h2 className="text-xl font-semibold text-white">Кто стабилен, кто в риске и кто перегружен</h2>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            {data.specialists.map((item) => (
+              <button
+                key={item.specialistId}
+                onClick={() => setSelectedCard({ type: "specialist", id: item.specialistId })}
+                className="rounded-[28px] border border-[#232323] bg-[#181818] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#34D399]/30 hover:bg-[#191E1B]"
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{item.specialistName}</p>
+                    <p className="mt-1 text-sm text-[#8B93A7]">{item.roleLabel}</p>
+                  </div>
+                  <StatusBadge status={item.riskStatus} />
                 </div>
 
-                {data.attentionItems.length > 0 ? (
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    {data.attentionItems.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSelectedCard({ type: "attention", id: item.id })}
-                        className="rounded-3xl border border-[#2A2020] bg-[#161111] p-4 text-left transition-all duration-200 hover:border-[#F87171]/30 hover:bg-[#1B1415]"
-                      >
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#F87171]/20 bg-[#F87171]/10 text-[#F87171]">
-                            <ShieldAlert className="h-4 w-4" />
-                          </div>
-                          <StatusBadge status={item.tone} />
-                        </div>
-                        <p className="text-sm font-semibold text-white">{item.title}</p>
-                        <p className="mt-2 text-sm leading-relaxed text-[#CBAFB2]">
-                          {item.description}
-                        </p>
-                        <div className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[#FCA5A5]">
-                          Открыть детали
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        </div>
-                      </button>
-                    ))}
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиенты</p>
+                    <p className="mt-2 text-sm font-medium text-white">{item.clients.length}</p>
                   </div>
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#121212] p-6 text-sm text-[#8B93A7]">
-                    Критичных сигналов сейчас нет.
+                  <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Отчёты</p>
+                    <p className="mt-2 text-sm font-medium text-white">{item.reportsTodayCount}</p>
                   </div>
-                )}
-              </section>
-
-              <section className="rounded-[32px] border border-[#1E1E1E] bg-[#14161A] p-5 sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
-                      <ClipboardCheck className="h-3.5 w-3.5" />
-                      Контроллер
-                    </div>
-                    <h2 className="text-xl font-semibold text-white">Сводка контроллера</h2>
+                  <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Часы</p>
+                    <p className="mt-2 text-sm font-medium text-white">{item.hoursLabel}</p>
+                  </div>
+                  <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Задачи</p>
+                    <p className="mt-2 text-sm font-medium text-white">
+                      {item.weeklyTasksDone}/{item.weeklyTasksTotal}
+                    </p>
                   </div>
                 </div>
 
-                {controllerTablesMissing ? (
-                  <div className="rounded-3xl border border-dashed border-[#303545] bg-[#101318] p-5 text-sm text-[#9FA8BB]">
-                    Таблицы контроллера доступны частично, поэтому здесь показана неполная сводка.
+                <div className="mt-4 rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                  <div className="mb-2 flex items-center justify-between text-xs text-[#B6C0D4]">
+                    <span>План-факт недели</span>
+                    <span>{item.weeklyTasksTotal ? Math.round((item.weeklyTasksDone / item.weeklyTasksTotal) * 100) : 0}%</span>
                   </div>
-                ) : null}
+                  <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${item.weeklyTasksTotal ? Math.round((item.weeklyTasksDone / item.weeklyTasksTotal) * 100) : 0}%`,
+                        background:
+                          item.riskStatus === "green"
+                            ? "#34D399"
+                            : item.riskStatus === "yellow"
+                            ? "#FBBF24"
+                            : "#F87171",
+                      }}
+                    />
+                  </div>
+                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    {
-                      label: "Планов на неделю",
-                      value: data.controller.totalPlans,
-                      color: "#38BDF8",
-                      icon: <TrendingUp className="h-4 w-4" />,
-                    },
-                    {
-                      label: "Закрыто",
-                      value: data.controller.completedPlans,
-                      color: "#34D399",
-                      icon: <CheckCircle2 className="h-4 w-4" />,
-                    },
-                    {
-                      label: "В работе",
-                      value: data.controller.pendingPlans,
-                      color: "#FBBF24",
-                      icon: <Sparkles className="h-4 w-4" />,
-                    },
-                    {
-                      label: "Эскалации",
-                      value: data.controller.escalationsCount,
-                      color: "#F87171",
-                      icon: <ShieldAlert className="h-4 w-4" />,
-                    },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-3xl border border-[#232734] bg-[#101218] p-4">
-                      <div
-                        className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl"
-                        style={{
-                          background: `${item.color}15`,
-                          border: `1px solid ${item.color}25`,
-                          color: item.color,
-                        }}
-                      >
-                        {item.icon}
-                      </div>
-                      <p className="text-2xl font-semibold text-white">{item.value}</p>
-                      <p className="mt-1 text-sm text-[#9FA8BB]">{item.label}</p>
+                <div className="mt-4 space-y-2">
+                  {item.alertReasons.slice(0, 2).map((reason) => (
+                    <div
+                      key={reason}
+                      className="rounded-2xl border border-[#252525] bg-[#111111] px-3 py-2.5 text-sm text-[#D1D5DB]"
+                    >
+                      {reason}
                     </div>
                   ))}
                 </div>
+              </button>
+            ))}
+          </div>
+        </section>
 
-                <div className="mt-4 space-y-3">
-                  {data.controller.recentControllerActions.slice(0, 3).map((action) => (
+        <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+          <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
+                <Briefcase className="h-3.5 w-3.5" />
+                Клиенты под контролем
+              </div>
+              <h2 className="text-xl font-semibold text-white">Где проблемы по клиентам и кому они назначены</h2>
+              <p className="mt-1 text-sm text-[#8B93A7]">
+                Список автоматически отсортирован по риску, с быстрыми фильтрами и поиском.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3 xl:w-[760px]">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Поиск клиента или специалиста"
+                className="h-11 rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
+              />
+
+              <select
+                value={companyFilter}
+                onChange={(event) => setCompanyFilter(event.target.value)}
+                className="h-11 rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
+              >
+                <option value="all">Все статусы</option>
+                <option value="red">Красная зона</option>
+                <option value="yellow">Жёлтая зона</option>
+                <option value="green">Зелёная зона</option>
+              </select>
+
+              <select
+                value={specialistFilter}
+                onChange={(event) => setSpecialistFilter(event.target.value)}
+                className="h-11 rounded-2xl border border-[#262626] bg-[#101010] px-4 text-sm text-white outline-none"
+              >
+                <option value="all">Все специалисты</option>
+                {specialistNames.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredCompanies.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+              {filteredCompanies.map((item) => (
+                <button
+                  key={item.companyId}
+                  onClick={() => setSelectedCard({ type: "company", id: item.companyId })}
+                  className="rounded-[28px] border border-[#232323] bg-[#181818] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#38BDF8]/30 hover:bg-[#191C22]"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-white">{item.companyName}</p>
+                      <p className="mt-2 text-sm text-[#B6C0D4]">{item.assignedSpecialistName}</p>
+                    </div>
+                    <StatusBadge status={item.healthStatus} />
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Отчёт за сегодня</p>
+                      <p className="mt-2 text-sm font-medium text-white">
+                        {item.reportSubmittedToday ? "Есть отчёт" : "Нет отчёта"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Дисциплина</p>
+                      <p className="mt-2 text-sm font-medium text-white">{item.disciplineLabel}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                    <div className="mb-2 flex items-center justify-between text-xs text-[#B6C0D4]">
+                      <span>План-факт недели</span>
+                      <span>{item.weeklyPlanDone}/{item.weeklyPlanTotal}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${item.weeklyPlanTotal ? Math.round((item.weeklyPlanDone / item.weeklyPlanTotal) * 100) : 0}%`,
+                          background:
+                            item.healthStatus === "green"
+                              ? "#34D399"
+                              : item.healthStatus === "yellow"
+                              ? "#FBBF24"
+                              : "#F87171",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Охват</p>
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        {item.kpi.reach.toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Рост</p>
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        +{item.kpi.growth.toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Лиды</p>
+                      <p className="mt-2 text-sm font-semibold text-white">{item.kpi.leads}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {item.alertReasons.slice(0, 2).map((reason) => (
+                      <div
+                        key={reason}
+                        className="rounded-2xl border border-[#252525] bg-[#111111] px-3 py-2.5 text-sm text-[#D1D5DB]"
+                      >
+                        {reason}
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-[#2A2A2A] bg-[#111111] p-8 text-center text-sm text-[#8B93A7]">
+              По выбранным фильтрам компании не найдены.
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[32px] border border-[#1E1E1E] bg-[#15161A] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Контроллер
+              </div>
+              <h2 className="text-xl font-semibold text-white">План, замечания и эскалации</h2>
+            </div>
+          </div>
+
+          {controllerTablesMissing ? (
+            <div className="mb-4 rounded-3xl border border-dashed border-[#333847] bg-[#111318] p-5 text-sm text-[#9FA8BB]">
+              Таблицы контроллера доступны частично, поэтому здесь показана неполная сводка.
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-4">
+            {[
+              {
+                label: "Планов на неделю",
+                value: data.controller.totalPlans,
+                color: "#38BDF8",
+                icon: TrendingUp,
+              },
+              {
+                label: "Закрыто",
+                value: data.controller.completedPlans,
+                color: "#34D399",
+                icon: CheckCircle2,
+              },
+              {
+                label: "В работе",
+                value: data.controller.pendingPlans,
+                color: "#FBBF24",
+                icon: ClipboardCheck,
+              },
+              {
+                label: "Эскалации",
+                value: data.controller.escalationsCount,
+                color: "#F87171",
+                icon: ShieldAlert,
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.label}
+                  className="rounded-3xl border border-[#232734] bg-[#101218] p-4"
+                >
+                  <div
+                    className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl"
+                    style={{
+                      background: `${item.color}15`,
+                      border: `1px solid ${item.color}25`,
+                    }}
+                  >
+                    <Icon className="h-5 w-5" style={{ color: item.color }} />
+                  </div>
+                  <p className="text-2xl font-semibold text-white">{item.value}</p>
+                  <p className="mt-1 text-sm text-[#9FA8BB]">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-3xl border border-[#232734] bg-[#101218] p-4">
+              <p className="mb-3 text-sm font-semibold text-white">Компании с замечаниями</p>
+              {data.controller.flaggedCompanies.length > 0 ? (
+                <div className="space-y-3">
+                  {data.controller.flaggedCompanies.slice(0, 4).map((companyItem) => (
+                    <button
+                      key={companyItem.companyId}
+                      onClick={() => setSelectedCard({ type: "company", id: companyItem.companyId })}
+                      className="flex w-full items-start justify-between gap-3 rounded-2xl border border-[#282D3A] bg-[#141923] px-4 py-3 text-left transition-colors hover:bg-[#171D29]"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-white">{companyItem.companyName}</p>
+                        <p className="mt-1 text-xs text-[#9FA8BB]">{companyItem.assignedSpecialistName}</p>
+                        <p className="mt-2 text-sm text-[#D1D5DB]">
+                          {companyItem.alertReasons[0] ?? "Есть управленческий риск"}
+                        </p>
+                      </div>
+                      <StatusBadge status={companyItem.healthStatus} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[#2C3240] bg-[#131821] p-5 text-sm text-[#9FA8BB]">
+                  Контроллер не видит активных замечаний по компаниям.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-[#232734] bg-[#101218] p-4">
+              <p className="mb-3 text-sm font-semibold text-white">Последние действия</p>
+              {data.controller.recentControllerActions.length > 0 ? (
+                <div className="space-y-3">
+                  {data.controller.recentControllerActions.slice(0, 4).map((action) => (
                     <div
                       key={action.id}
                       className="rounded-2xl border border-[#282D3A] bg-[#141923] p-4"
@@ -345,457 +568,18 @@ export function ManagerDashboard({ onOpenClient }: ManagerDashboardProps) {
                         <StatusBadge status={action.tone} />
                       </div>
                       <p className="text-sm text-[#D1D5DB]">{action.label}</p>
+                      <p className="mt-2 text-xs text-[#7C879C]">{action.createdAt}</p>
                     </div>
                   ))}
                 </div>
-              </section>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[#2C3240] bg-[#131821] p-5 text-sm text-[#9FA8BB]">
+                  Пока нет последних действий контроллера.
+                </div>
+              )}
             </div>
-
-            <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#7DD3FC]">
-                    <Briefcase className="h-3.5 w-3.5" />
-                    Компании
-                  </div>
-                  <h2 className="text-xl font-semibold text-white">Карточки компаний</h2>
-                </div>
-                <span className="text-sm text-[#8B93A7]">{data.companies.length}</span>
-              </div>
-
-              <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-                {data.companies.map((item) => {
-                  const progress = getProgressPercent(item.weeklyPlanDone, item.weeklyPlanTotal);
-
-                  return (
-                    <button
-                      key={item.companyId}
-                      onClick={() => setSelectedCard({ type: "company", id: item.companyId })}
-                      className="rounded-[28px] border border-[#232323] bg-[#181818] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#38BDF8]/30 hover:bg-[#191C22]"
-                    >
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-lg font-semibold text-white">{item.companyName}</p>
-                          <div className="mt-2 inline-flex items-center gap-2 text-sm text-[#B6C0D4]">
-                            <UserRound className="h-4 w-4 text-[#38BDF8]" />
-                            {item.assignedSpecialistName}
-                          </div>
-                        </div>
-                        <StatusBadge status={item.healthStatus} />
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Отчёт
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">
-                            {item.reportSubmittedToday ? "Есть" : "Нет"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            План
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">
-                            {item.weeklyPlanDone}/{item.weeklyPlanTotal}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Лиды
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">{item.kpi.leads}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                        <div className="mb-2 flex items-center justify-between text-xs text-[#B6C0D4]">
-                          <span>Прогресс недели</span>
-                          <span>{progress}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${progress}%`,
-                              background:
-                                item.healthStatus === "green"
-                                  ? "#34D399"
-                                  : item.healthStatus === "yellow"
-                                  ? "#FBBF24"
-                                  : "#F87171",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#38BDF8]">
-                        Провалиться в карточку
-                        <ArrowUpRight className="h-4 w-4" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
-                    <Users className="h-3.5 w-3.5" />
-                    Команда
-                  </div>
-                  <h2 className="text-xl font-semibold text-white">Карточки специалистов</h2>
-                </div>
-                <span className="text-sm text-[#8B93A7]">{data.specialists.length}</span>
-              </div>
-
-              <div className="grid gap-4 xl:grid-cols-2">
-                {data.specialists.map((item) => {
-                  const progress = getProgressPercent(item.weeklyTasksDone, item.weeklyTasksTotal);
-
-                  return (
-                    <button
-                      key={item.specialistId}
-                      onClick={() => setSelectedCard({ type: "specialist", id: item.specialistId })}
-                      className="rounded-[28px] border border-[#232323] bg-[#181818] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#34D399]/30 hover:bg-[#191E1B]"
-                    >
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-lg font-semibold text-white">{item.specialistName}</p>
-                          <p className="mt-1 text-sm text-[#8B93A7]">{item.roleLabel}</p>
-                        </div>
-                        <StatusBadge status={item.riskStatus} />
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-4">
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Клиенты
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">{item.clients.length}</p>
-                        </div>
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Отчёты
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">{item.reportsTodayCount}</p>
-                        </div>
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Часы
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">
-                            {formatTrackedTime(item.totalTrackedMinutes)}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">
-                            Задачи
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-white">
-                            {item.weeklyTasksDone}/{item.weeklyTasksTotal}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                        <div className="mb-2 flex items-center justify-between text-xs text-[#B6C0D4]">
-                          <span>Прогресс недели</span>
-                          <span>{progress}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${progress}%`,
-                              background:
-                                item.riskStatus === "green"
-                                  ? "#34D399"
-                                  : item.riskStatus === "yellow"
-                                  ? "#FBBF24"
-                                  : "#F87171",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#34D399]">
-                        Провалиться в карточку
-                        <ArrowUpRight className="h-4 w-4" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          </>
-        ) : company ? (
-          <section className="rounded-[28px] border border-[#1E1E1E] bg-[#141414] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-5">
-            <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-              <div>
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[10px] font-semibold text-[#7DD3FC]">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  Карточка компании
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-semibold text-white">{company.companyName}</h2>
-                  <StatusBadge status={company.healthStatus} />
-                </div>
-                <p className="mt-1 text-sm text-[#8B93A7]">
-                  SMM: {company.assignedSpecialistName}
-                </p>
-              </div>
-
-              <button
-                onClick={() => onOpenClient(company.companyId)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-2.5 text-sm font-semibold text-[#38BDF8] transition-colors hover:bg-[#38BDF8]/20"
-              >
-                Открыть workspace
-                <ArrowUpRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-4 2xl:grid-cols-8">
-              {[
-                {
-                  label: "Отчёт",
-                  value: company.reportSubmittedToday ? "Есть" : "Нет",
-                },
-                {
-                  label: "План",
-                  value: `${company.weeklyPlanDone}/${company.weeklyPlanTotal}`,
-                },
-                {
-                  label: "Прогресс",
-                  value: `${getProgressPercent(company.weeklyPlanDone, company.weeklyPlanTotal)}%`,
-                },
-                {
-                  label: "Охват",
-                  value: company.kpi.reach.toLocaleString("ru-RU"),
-                },
-                {
-                  label: "Рост",
-                  value: `+${company.kpi.growth.toLocaleString("ru-RU")}`,
-                },
-                {
-                  label: "Лиды",
-                  value: String(company.kpi.leads),
-                },
-                {
-                  label: "Контроллер",
-                  value: company.controllerEscalation
-                    ? "Эскалация"
-                    : company.controllerFlag
-                    ? "Флаг"
-                    : "ОК",
-                },
-                {
-                  label: "Апдейт",
-                  value: company.lastUpdate,
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-[#242424] bg-[#111111] px-3 py-3"
-                >
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
-                    {item.label}
-                  </p>
-                  <p className="mt-1.5 text-sm font-semibold text-white break-words">
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-[#242424] bg-[#111111] p-3">
-              <div className="mb-2 flex items-center justify-between text-[11px] text-[#B6C0D4]">
-                <span>Недельный прогресс</span>
-                <span>
-                  {company.weeklyPlanDone}/{company.weeklyPlanTotal}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#1F1F1F]">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${getProgressPercent(company.weeklyPlanDone, company.weeklyPlanTotal)}%`,
-                    background:
-                      company.healthStatus === "green"
-                        ? "#34D399"
-                        : company.healthStatus === "yellow"
-                        ? "#FBBF24"
-                        : "#F87171",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                <p className="mb-3 text-sm font-semibold text-white">Ключевые причины статуса</p>
-                <div className="grid gap-2">
-                  {(company.alertReasons.length > 0
-                    ? company.alertReasons
-                    : ["Критичных замечаний нет"]).slice(0, 4).map((reason) => (
-                    <div
-                      key={reason}
-                      className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2 text-sm text-[#D1D5DB]"
-                    >
-                      {reason}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[#242424] bg-[#111111] p-4">
-                <p className="mb-3 text-sm font-semibold text-white">Контроллер и действия</p>
-                <div className="grid gap-2">
-                  <div className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
-                      Сигнал
-                    </p>
-                    <p className="mt-1 text-sm text-white">
-                      {company.controllerEscalation
-                        ? "Есть эскалация"
-                        : company.controllerFlag
-                        ? "Есть предупреждение"
-                        : "Замечаний нет"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[#2A2A2A] bg-[#171717] px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
-                      Руководителю
-                    </p>
-                    <p className="mt-1 text-sm text-white">
-                      {company.healthStatus === "red"
-                        ? "Нужно вмешательство"
-                        : company.healthStatus === "yellow"
-                        ? "Нужно проверить вручную"
-                        : "Ситуация стабильна"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : specialist ? (
-          <section className="rounded-[32px] border border-[#1E1E1E] bg-[#141414] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
-                  <Users className="h-3.5 w-3.5" />
-                  Карточка специалиста
-                </div>
-                <h2 className="text-2xl font-semibold text-white">{specialist.specialistName}</h2>
-                <p className="mt-2 text-sm text-[#8B93A7]">{specialist.roleLabel}</p>
-              </div>
-              <StatusBadge status={specialist.riskStatus} />
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-4">
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Клиенты</p>
-                <p className="mt-2 text-lg font-semibold text-white">{specialist.clients.length}</p>
-              </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Отчёты сегодня</p>
-                <p className="mt-2 text-lg font-semibold text-white">{specialist.reportsTodayCount}</p>
-              </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Часы</p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {formatTrackedTime(specialist.totalTrackedMinutes)}
-                </p>
-              </div>
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#6B7280]">Задачи недели</p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {specialist.weeklyTasksDone}/{specialist.weeklyTasksTotal}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Причины статуса</p>
-                <div className="space-y-3">
-                  {specialist.alertReasons.map((reason) => (
-                    <div
-                      key={reason}
-                      className="rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 py-3 text-sm text-[#D1D5DB]"
-                    >
-                      {reason}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-[#242424] bg-[#111111] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Закреплённые компании</p>
-                <div className="grid gap-3">
-                  {specialist.clients.map((client) => (
-                    <button
-                      key={client.id}
-                      onClick={() => onOpenClient(client.id)}
-                      className="flex items-center justify-between rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 py-3 text-left transition-colors hover:border-[#38BDF8]/30 hover:bg-[#191C22]"
-                    >
-                      <span className="text-sm font-medium text-white">{client.name}</span>
-                      <StatusBadge status={client.healthStatus} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : attention ? (
-          <section className="rounded-[32px] border border-[#1E1E1E] bg-[#161112] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#F87171]/20 bg-[#F87171]/10 px-3 py-1 text-[11px] font-semibold text-[#FCA5A5]">
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Сигнал внимания
-                </div>
-                <h2 className="text-2xl font-semibold text-white">{attention.title}</h2>
-                <p className="mt-2 text-sm text-[#D1B5B5]">{attention.description}</p>
-              </div>
-              <StatusBadge status={attention.tone} />
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <div className="rounded-3xl border border-[#3A2426] bg-[#191214] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Что произошло</p>
-                <p className="text-sm leading-relaxed text-[#E7D3D5]">
-                  Этот сигнал попал в верхний приоритет управленческого dashboard, потому что система
-                  увидела риск по отчётности, выполнению плана или сигналу от контроллера.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-[#3A2426] bg-[#191214] p-5">
-                <p className="mb-3 text-sm font-semibold text-white">Быстрое действие</p>
-                {attention.companyId ? (
-                  <button
-                    onClick={() => onOpenClient(attention.companyId!)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-[#F87171]/30 bg-[#F87171]/10 px-4 py-3 text-sm font-semibold text-[#FCA5A5] transition-colors hover:bg-[#F87171]/20"
-                  >
-                    Открыть компанию
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <div className="rounded-2xl border border-[#2A2A2A] bg-[#171717] px-4 py-3 text-sm text-[#E7D3D5]">
-                    Откройте карточку специалиста из общей сетки, чтобы продолжить анализ.
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        ) : null}
+          </div>
+        </section>
       </div>
     </div>
   );

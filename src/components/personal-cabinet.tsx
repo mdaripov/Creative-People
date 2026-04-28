@@ -61,14 +61,14 @@ export function PersonalCabinet({
               className="inline-flex items-center gap-2 rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-2.5 text-xs font-semibold text-[#38BDF8]"
             >
               <BarChart3 className="h-3.5 w-3.5" />
-              Dashboard
+              Дашборд руководителя
             </button>
             <button
               onClick={() => setActiveTab("overview")}
               className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
             >
               <UserCircle2 className="h-3.5 w-3.5" />
-              Обзор
+              Обзор кабинета
             </button>
             <button
               onClick={() => setActiveTab("reports")}
@@ -95,7 +95,7 @@ export function PersonalCabinet({
                 className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
               >
                 <BarChart3 className="h-3.5 w-3.5" />
-                Dashboard
+                Дашборд руководителя
               </button>
             )}
             <button
@@ -103,7 +103,7 @@ export function PersonalCabinet({
               className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
             >
               <UserCircle2 className="h-3.5 w-3.5" />
-              Обзор
+              Обзор кабинета
             </button>
             <button
               onClick={() => setActiveTab("reports")}
@@ -129,7 +129,7 @@ export function PersonalCabinet({
               className="inline-flex items-center gap-2 rounded-2xl border border-[#2A2A2A] bg-[#151515] px-4 py-2.5 text-xs font-semibold text-[#C9D1E1] transition-all hover:bg-[#181818]"
             >
               <BarChart3 className="h-3.5 w-3.5" />
-              Dashboard
+              Дашборд руководителя
             </button>
           )}
           <button
@@ -137,7 +137,7 @@ export function PersonalCabinet({
             className="inline-flex items-center gap-2 rounded-2xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 py-2.5 text-xs font-semibold text-[#34D399]"
           >
             <UserCircle2 className="h-3.5 w-3.5" />
-            Обзор
+            Обзор кабинета
           </button>
           <button
             onClick={() => setActiveTab("reports")}
@@ -162,7 +162,7 @@ export function PersonalCabinet({
                 <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
                 <p className="mt-1 text-sm text-[#8B93A7]">
                   {role === "manager"
-                    ? "Вы видите executive overview агентства, личные кабинеты и отчёты команды."
+                    ? "Здесь собраны executive dashboard, личные кабинеты клиентов и отчёты команды."
                     : "Здесь собраны закреплённые за вами клиенты и ваш быстрый доступ к работе."}
                 </p>
               </div>

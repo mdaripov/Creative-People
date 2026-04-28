@@ -10,6 +10,30 @@ export interface ManagerKpiItem {
   note: string;
 }
 
+export interface ManagerHeroSummary {
+  title: string;
+  subtitle: string;
+  snapshotLabel: string;
+  highlight: {
+    label: string;
+    value: string;
+    tone: HealthStatus | "neutral";
+  };
+  summaryLine: Array<{
+    id: string;
+    label: string;
+    value: string;
+    tone: HealthStatus | "neutral";
+  }>;
+}
+
+export interface ManagerSummaryStripItem {
+  id: string;
+  label: string;
+  value: string;
+  tone: HealthStatus | "neutral";
+}
+
 export interface ManagerCompanyStatus {
   companyId: string;
   companyName: string;
@@ -23,6 +47,7 @@ export interface ManagerCompanyStatus {
   lastUpdate: string;
   controllerEscalation: boolean;
   controllerFlag: boolean;
+  disciplineLabel: string;
   kpi: {
     reach: number;
     growth: number;
@@ -43,6 +68,7 @@ export interface ManagerSpecialistStatus {
   disciplineStatus: "stable" | "warning" | "risk";
   riskStatus: HealthStatus;
   alertReasons: string[];
+  hoursLabel: string;
 }
 
 export interface ManagerControllerAction {
@@ -65,6 +91,8 @@ export interface ManagerControllerStatus {
 }
 
 export interface ManagerDashboardData {
+  hero: ManagerHeroSummary;
+  summaryStrip: ManagerSummaryStripItem[];
   kpis: ManagerKpiItem[];
   companies: ManagerCompanyStatus[];
   specialists: ManagerSpecialistStatus[];
@@ -76,6 +104,7 @@ export interface ManagerDashboardData {
     tone: HealthStatus;
     companyId?: string;
     specialistId?: string;
+    type: "company" | "specialist" | "controller";
   }>;
 }
 
@@ -208,10 +237,7 @@ function computeCompanyHealth(input: {
 
   if (input.weeklyPlanTotal > 0 && input.weeklyPlanDone === 0) {
     reasons.push(`0/${input.weeklyPlanTotal} задач выполнено`);
-  } else if (
-    input.weeklyPlanTotal > 0 &&
-    input.weeklyPlanDone < input.weeklyPlanTotal
-  ) {
+  } else if (input.weeklyPlanTotal > 0 && input.weeklyPlanDone < input.weeklyPlanTotal) {
     reasons.push(`${input.weeklyPlanDone}/${input.weeklyPlanTotal} задач выполнено`);
   }
 
@@ -228,10 +254,7 @@ function computeCompanyHealth(input: {
     };
   }
 
-  if (
-    input.weeklyPlanTotal > 0 &&
-    (progress < 100 || input.controllerFlag)
-  ) {
+  if (input.weeklyPlanTotal > 0 && (progress < 100 || input.controllerFlag)) {
     return {
       healthStatus: "yellow" as HealthStatus,
       alertReasons: reasons,
@@ -242,6 +265,27 @@ function computeCompanyHealth(input: {
     healthStatus: "green" as HealthStatus,
     alertReasons: reasons.length ? reasons : ["План выполняется и отчёт есть"],
   };
+}
+
+function getCompanyDisciplineLabel(company: {
+  reportSubmittedToday: boolean;
+  weeklyPlanDone: number;
+  weeklyPlanTotal: number;
+  controllerEscalation: boolean;
+  controllerFlag: boolean;
+}) {
+  if (!company.reportSubmittedToday || company.controllerEscalation) {
+    return "Нужно вмешательство";
+  }
+
+  if (
+    (company.weeklyPlanTotal > 0 && company.weeklyPlanDone < company.weeklyPlanTotal) ||
+    company.controllerFlag
+  ) {
+    return "Нужно внимание";
+  }
+
+  return "Стабильно";
 }
 
 export function buildManagerDashboardData(input: {
@@ -265,16 +309,13 @@ export function buildManagerDashboardData(input: {
       (item) => item.client_id === client.id && item.week_start === currentWeekStart
     );
 
-    const planTasks = plan
-      ? input.controllerTasks.filter((task) => task.plan_id === plan.id)
-      : [];
+    const planTasks = plan ? input.controllerTasks.filter((task) => task.plan_id === plan.id) : [];
 
     const weeklyPlanTotal = planTasks.length;
     const weeklyPlanDone = planTasks.filter((task) => task.done).length;
     const reportSubmittedToday = reportsToday.length > 0;
     const controllerEscalation = weeklyPlanTotal > 0 && weeklyPlanDone === 0;
-    const controllerFlag =
-      weeklyPlanTotal > 0 && weeklyPlanDone < weeklyPlanTotal;
+    const controllerFlag = weeklyPlanTotal > 0 && weeklyPlanDone < weeklyPlanTotal;
 
     const health = computeCompanyHealth({
       reportSubmittedToday,
@@ -290,10 +331,7 @@ export function buildManagerDashboardData(input: {
     const leads = Math.max(Math.round(reach / 900), 0);
 
     const lastUpdate =
-      reportsToday[0]?.created_at ??
-      clientReports[0]?.created_at ??
-      plan?.created_at ??
-      "Нет обновлений";
+      reportsToday[0]?.created_at ?? clientReports[0]?.created_at ?? plan?.created_at ?? "Нет обновлений";
 
     return {
       companyId: client.id,
@@ -308,6 +346,13 @@ export function buildManagerDashboardData(input: {
       lastUpdate,
       controllerEscalation,
       controllerFlag,
+      disciplineLabel: getCompanyDisciplineLabel({
+        reportSubmittedToday,
+        weeklyPlanDone,
+        weeklyPlanTotal,
+        controllerEscalation,
+        controllerFlag,
+      }),
       kpi: {
         reach,
         growth,
@@ -317,17 +362,11 @@ export function buildManagerDashboardData(input: {
   });
 
   const specialists = specialistProfiles.map<ManagerSpecialistStatus>((profile) => {
-    const specialistClients = companies.filter(
-      (company) => company.assignedSpecialistId === profile.id
-    );
-    const specialistReports = input.workReports.filter(
-      (report) => report.specialist_id === profile.id
-    );
+    const specialistClients = companies.filter((company) => company.assignedSpecialistId === profile.id);
+    const specialistReports = input.workReports.filter((report) => report.specialist_id === profile.id);
     const reportsTodayCount = specialistReports.filter((report) => isToday(report.date)).length;
 
-    const specialistTasks = input.controllerTasks.filter(
-      (task) => task.specialist_id === profile.id
-    );
+    const specialistTasks = input.controllerTasks.filter((task) => task.specialist_id === profile.id);
     const weeklyTasks = specialistTasks.filter((task) => {
       const plan = input.controllerPlans.find((item) => item.id === task.plan_id);
       return plan?.week_start === currentWeekStart;
@@ -357,11 +396,7 @@ export function buildManagerDashboardData(input: {
     }
 
     const disciplineStatus =
-      riskStatus === "red"
-        ? "risk"
-        : riskStatus === "yellow"
-        ? "warning"
-        : "stable";
+      riskStatus === "red" ? "risk" : riskStatus === "yellow" ? "warning" : "stable";
 
     return {
       specialistId: profile.id,
@@ -379,14 +414,17 @@ export function buildManagerDashboardData(input: {
       totalReportEntries: specialistReports.length,
       disciplineStatus,
       riskStatus,
-      alertReasons:
-        alertReasons.length > 0 ? alertReasons : ["Работа идёт стабильно"],
+      alertReasons: alertReasons.length > 0 ? alertReasons : ["Работа идёт стабильно"],
+      hoursLabel: formatTrackedTime(totalTrackedMinutes),
     };
   });
 
   const redCompanies = companies.filter((company) => company.healthStatus === "red");
   const yellowCompanies = companies.filter((company) => company.healthStatus === "yellow");
   const greenCompanies = companies.filter((company) => company.healthStatus === "green");
+  const companiesWithoutReport = companies.filter((company) => !company.reportSubmittedToday);
+  const totalWeeklyPlan = companies.reduce((sum, company) => sum + company.weeklyPlanTotal, 0);
+  const totalWeeklyDone = companies.reduce((sum, company) => sum + company.weeklyPlanDone, 0);
 
   const controllerPlansCurrentWeek = input.controllerPlans.filter(
     (plan) => plan.week_start === currentWeekStart
@@ -424,11 +462,7 @@ export function buildManagerDashboardData(input: {
           ? "Контроллер отметил риск по плану"
           : "Система видит отсутствие отчёта",
         createdAt: company.lastUpdate,
-        tone: company.controllerEscalation
-          ? "red"
-          : company.controllerFlag
-          ? "yellow"
-          : "red",
+        tone: company.controllerEscalation ? "red" : company.controllerFlag ? "yellow" : "red",
       })),
   };
 
@@ -439,6 +473,7 @@ export function buildManagerDashboardData(input: {
       description: company.alertReasons[0] ?? "Требуется проверка компании",
       tone: "red" as HealthStatus,
       companyId: company.companyId,
+      type: "company" as const,
     })),
     ...specialists
       .filter((specialist) => specialist.riskStatus !== "green")
@@ -448,55 +483,120 @@ export function buildManagerDashboardData(input: {
         description: specialist.alertReasons[0] ?? "Есть риск по дисциплине",
         tone: specialist.riskStatus,
         specialistId: specialist.specialistId,
+        type: "specialist" as const,
       })),
+    ...controllerSummary.recentControllerActions
+      .filter((action) => action.tone === "red")
+      .slice(0, 2)
+      .map((action) => {
+        const company = companies.find((item) => item.companyName === action.companyName);
+
+        return {
+          id: `controller-${action.id}`,
+          title: action.companyName,
+          description: action.label,
+          tone: action.tone,
+          companyId: company?.companyId,
+          type: "controller" as const,
+        };
+      }),
   ].slice(0, 8);
 
   const kpis: ManagerKpiItem[] = [
     {
       id: "active-companies",
-      label: "Активных компаний",
+      label: "Всего клиентов",
       value: companies.length,
       tone: "neutral",
-      note: "в поле зрения руководителя",
-    },
-    {
-      id: "green-zone",
-      label: "В зелёной зоне",
-      value: greenCompanies.length,
-      tone: "green",
-      note: "есть отчёт и план в порядке",
-    },
-    {
-      id: "yellow-red-zone",
-      label: "В зоне риска",
-      value: yellowCompanies.length + redCompanies.length,
-      tone: redCompanies.length > 0 ? "red" : "yellow",
-      note: "жёлтые и красные компании",
+      note: "под контролем руководителя",
     },
     {
       id: "specialists-working",
-      label: "SMM в работе",
+      label: "Специалистов в работе",
       value: specialists.length,
       tone: "neutral",
-      note: "активная команда",
+      note: "активная команда сейчас",
     },
     {
       id: "without-report",
-      label: "Без отчёта за сегодня",
-      value: companies.filter((company) => !company.reportSubmittedToday).length,
-      tone: companies.some((company) => !company.reportSubmittedToday) ? "red" : "green",
-      note: "компании без дневного отчёта",
+      label: "Без отчёта сегодня",
+      value: companiesWithoutReport.length,
+      tone: companiesWithoutReport.length > 0 ? "red" : "green",
+      note: "клиенты без отчёта за день",
+    },
+    {
+      id: "yellow-red-zone",
+      label: "Проблемных клиентов",
+      value: yellowCompanies.length + redCompanies.length,
+      tone: redCompanies.length > 0 ? "red" : "yellow",
+      note: "жёлтая и красная зоны",
+    },
+    {
+      id: "plan-fact",
+      label: "План-факт недели",
+      value: getProgressPercent(totalWeeklyDone, totalWeeklyPlan),
+      tone:
+        totalWeeklyPlan === 0
+          ? "neutral"
+          : totalWeeklyDone === totalWeeklyPlan
+          ? "green"
+          : totalWeeklyDone > 0
+          ? "yellow"
+          : "red",
+      note: `${totalWeeklyDone}/${totalWeeklyPlan} задач закрыто`,
     },
     {
       id: "controller-escalations",
       label: "Эскалации контроллера",
       value: controllerSummary.escalationsCount,
       tone: controllerSummary.escalationsCount > 0 ? "red" : "green",
-      note: "нужна реакция руководителя",
+      note: "требуют реакции руководителя",
     },
   ];
 
+  const summaryStrip: ManagerSummaryStripItem[] = [
+    {
+      id: "clients",
+      label: "Клиентов под контролем",
+      value: String(companies.length),
+      tone: "neutral",
+    },
+    {
+      id: "specialists",
+      label: "Активных специалистов",
+      value: String(specialists.length),
+      tone: "neutral",
+    },
+    {
+      id: "risk-zones",
+      label: "Зон риска",
+      value: String(redCompanies.length + yellowCompanies.length),
+      tone: redCompanies.length > 0 ? "red" : yellowCompanies.length > 0 ? "yellow" : "green",
+    },
+  ];
+
+  const hero: ManagerHeroSummary = {
+    title: "Дашборд руководителя",
+    subtitle:
+      "Состояние агентства за сегодня и текущую неделю: люди, отчёты, клиенты и сигналы контроллера.",
+    snapshotLabel: `Сегодня под наблюдением ${companies.length} клиентов и ${specialists.length} специалистов.`,
+    highlight: {
+      label: redCompanies.length > 0 ? "Критичный фокус" : "Текущий фокус",
+      value:
+        redCompanies.length > 0
+          ? `${redCompanies.length} клиентов требуют срочного внимания`
+          : yellowCompanies.length > 0
+          ? `${yellowCompanies.length} клиентов требуют ручной проверки`
+          : "Критичных отклонений сейчас нет",
+      tone:
+        redCompanies.length > 0 ? "red" : yellowCompanies.length > 0 ? "yellow" : "green",
+    },
+    summaryLine: summaryStrip,
+  };
+
   return {
+    hero,
+    summaryStrip,
     kpis,
     companies,
     specialists,
