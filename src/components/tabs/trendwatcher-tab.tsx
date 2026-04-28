@@ -296,129 +296,137 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }
 
   return (
-    <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-      <ReportSummary report={activeReport} />
+    <div className="animate-fade-in flex h-full flex-col bg-[#0D121A]">
+      <div className="flex-shrink-0 border-b border-[#1E2838] bg-[#0D121A] p-4 sm:p-6">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+          <FilterBar
+            platforms={platformOptions}
+            selectedPlatform={selectedPlatform}
+            onPlatformChange={setSelectedPlatform}
+            selectedPriority={selectedPriority}
+            onPriorityChange={setSelectedPriority}
+            selectedType={selectedType}
+            onTypeChange={setSelectedType}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            hasActiveFilters={hasActiveFilters}
+            onReset={handleResetFilters}
+          />
 
-      <ReportSwitcher
-        reports={normalizedReports}
-        selectedReportId={activeReport.id}
-        onSelectReport={setSelectedReportId}
-      />
-
-      <FilterBar
-        platforms={platformOptions}
-        selectedPlatform={selectedPlatform}
-        onPlatformChange={setSelectedPlatform}
-        selectedPriority={selectedPriority}
-        onPriorityChange={setSelectedPriority}
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        hasActiveFilters={hasActiveFilters}
-        onReset={handleResetFilters}
-      />
-
-      <SectionAnchorNav
-        items={[
-          { id: "priority-trends", label: "Тренды", count: filteredTrends.length },
-          { id: "ready-scenarios", label: "Сценарии", count: filteredScenarios.length },
-          { id: "competitors", label: "Конкуренты", count: filteredCompetitors.length },
-          { id: "analysis", label: "Анализ" },
-        ]}
-      />
-
-      {filteredTrends.length === 0 &&
-      filteredScenarios.length === 0 &&
-      filteredCompetitors.length === 0 ? (
-        <EmptyFilterState
-          title="По текущим фильтрам ничего не найдено"
-          description="Сейчас лента пуста, потому что выбранные фильтры слишком узкие для этого отчёта. Сбросьте их и вернитесь к полному обзору."
-          onReset={handleResetFilters}
-        />
-      ) : (
-        <div className="space-y-5">
-          {priorityTrends.length > 0 ? (
-            <SectionShell
-              id="priority-trends"
-              title="Приоритетные тренды"
-              subtitle="Самые сильные сигналы, которые стоит смотреть и обсуждать первыми."
-              icon={<TrendingUp className="h-5 w-5" />}
-              accent="#FBBF24"
-            >
-              <div className="grid gap-4 xl:grid-cols-2">
-                {priorityTrends.map((item) => (
-                  <TrendCard key={item.id} item={item} viewMode={viewMode} featured />
-                ))}
-              </div>
-            </SectionShell>
-          ) : null}
-
-          {readyScenarios.length > 0 ? (
-            <SectionShell
-              id="ready-scenarios"
-              title="Сценарии, готовые к тесту"
-              subtitle="Production-ready блоки, которые уже ближе всего к передаче в работу команде."
-              icon={<Zap className="h-5 w-5" />}
-              accent="#34D399"
-            >
-              <div className="grid gap-4 xl:grid-cols-2">
-                {readyScenarios.map((item) => (
-                  <ScenarioCard key={item.id} item={item} viewMode={viewMode} featured />
-                ))}
-              </div>
-            </SectionShell>
-          ) : null}
-
-          {filteredCompetitors.length > 0 ? (
-            <SectionShell
-              id="competitors"
-              title="Конкурентные наблюдения"
-              subtitle="Что у других реально сработало, что можно адаптировать и где важно не копировать в лоб."
-              icon={<Target className="h-5 w-5" />}
-              accent="#38BDF8"
-            >
-              <div className="grid gap-4 xl:grid-cols-2">
-                {filteredCompetitors.map((item) => (
-                  <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
-                ))}
-              </div>
-            </SectionShell>
-          ) : null}
-
-          {remainingItemsCount > 0 ? (
-            <SectionShell
-              id="rest-feed"
-              title="Остальные материалы"
-              subtitle="Спокойный слой ленты для второго прохода после ключевых приоритетов."
-              icon={<Sparkles className="h-5 w-5" />}
-              accent="#A78BFA"
-            >
-              <div className="space-y-4">
-                {remainingTrends.length > 0 ? (
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    {remainingTrends.map((item) => (
-                      <TrendCard key={item.id} item={item} viewMode={viewMode} />
-                    ))}
-                  </div>
-                ) : null}
-
-                {remainingScenarios.length > 0 ? (
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    {remainingScenarios.map((item) => (
-                      <ScenarioCard key={item.id} item={item} viewMode={viewMode} />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </SectionShell>
-          ) : null}
-
-          {activeReport.analysis ? (
-            <AnalysisPanel analysis={activeReport.analysis} summary={analysisSummary} />
-          ) : null}
+          <SectionAnchorNav
+            items={[
+              { id: "priority-trends", label: "Тренды", count: filteredTrends.length },
+              { id: "ready-scenarios", label: "Сценарии", count: filteredScenarios.length },
+              { id: "competitors", label: "Конкуренты", count: filteredCompetitors.length },
+              { id: "analysis", label: "Анализ" },
+            ]}
+          />
         </div>
-      )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
+          <ReportSummary report={activeReport} />
+
+          <ReportSwitcher
+            reports={normalizedReports}
+            selectedReportId={activeReport.id}
+            onSelectReport={setSelectedReportId}
+          />
+
+          {filteredTrends.length === 0 &&
+          filteredScenarios.length === 0 &&
+          filteredCompetitors.length === 0 ? (
+            <EmptyFilterState
+              title="По текущим фильтрам ничего не найдено"
+              description="Сейчас лента пуста, потому что выбранные фильтры слишком узкие для этого отчёта. Сбросьте их и вернитесь к полному обзору."
+              onReset={handleResetFilters}
+            />
+          ) : (
+            <div className="space-y-5">
+              {priorityTrends.length > 0 ? (
+                <SectionShell
+                  id="priority-trends"
+                  title="Приоритетные тренды"
+                  subtitle="Самые сильные сигналы, которые стоит смотреть и обсуждать первыми."
+                  icon={<TrendingUp className="h-5 w-5" />}
+                  accent="#FBBF24"
+                >
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {priorityTrends.map((item) => (
+                      <TrendCard key={item.id} item={item} viewMode={viewMode} featured />
+                    ))}
+                  </div>
+                </SectionShell>
+              ) : null}
+
+              {readyScenarios.length > 0 ? (
+                <SectionShell
+                  id="ready-scenarios"
+                  title="Сценарии, готовые к тесту"
+                  subtitle="Production-ready блоки, которые уже ближе всего к передаче в работу команде."
+                  icon={<Zap className="h-5 w-5" />}
+                  accent="#34D399"
+                >
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {readyScenarios.map((item) => (
+                      <ScenarioCard key={item.id} item={item} viewMode={viewMode} featured />
+                    ))}
+                  </div>
+                </SectionShell>
+              ) : null}
+
+              {filteredCompetitors.length > 0 ? (
+                <SectionShell
+                  id="competitors"
+                  title="Конкурентные наблюдения"
+                  subtitle="Что у других реально сработало, что можно адаптировать и где важно не копировать в лоб."
+                  icon={<Target className="h-5 w-5" />}
+                  accent="#38BDF8"
+                >
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {filteredCompetitors.map((item) => (
+                      <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
+                    ))}
+                  </div>
+                </SectionShell>
+              ) : null}
+
+              {remainingItemsCount > 0 ? (
+                <SectionShell
+                  id="rest-feed"
+                  title="Остальные материалы"
+                  subtitle="Спокойный слой ленты для второго прохода после ключевых приоритетов."
+                  icon={<Sparkles className="h-5 w-5" />}
+                  accent="#A78BFA"
+                >
+                  <div className="space-y-4">
+                    {remainingTrends.length > 0 ? (
+                      <div className="grid gap-4 xl:grid-cols-2">
+                        {remainingTrends.map((item) => (
+                          <TrendCard key={item.id} item={item} viewMode={viewMode} />
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {remainingScenarios.length > 0 ? (
+                      <div className="grid gap-4 xl:grid-cols-2">
+                        {remainingScenarios.map((item) => (
+                          <ScenarioCard key={item.id} item={item} viewMode={viewMode} />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </SectionShell>
+              ) : null}
+
+              {activeReport.analysis ? (
+                <AnalysisPanel analysis={activeReport.analysis} summary={analysisSummary} />
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
