@@ -41,6 +41,51 @@ export type Database = {
           }
         ];
       };
+      clients: {
+        Row: {
+          competitor_websites: string | null;
+          created_at: string | null;
+          fixed_competitors: string | null;
+          id: string;
+          instagram_handle: string | null;
+          language: string | null;
+          name: string;
+          niche: string | null;
+          smm_specialist_id: string | null;
+          status: string | null;
+          telegram_chat_id: string | null;
+          uuid: string;
+        };
+        Insert: {
+          competitor_websites?: string | null;
+          created_at?: string | null;
+          fixed_competitors?: string | null;
+          id: string;
+          instagram_handle?: string | null;
+          language?: string | null;
+          name: string;
+          niche?: string | null;
+          smm_specialist_id?: string | null;
+          status?: string | null;
+          telegram_chat_id?: string | null;
+          uuid?: string;
+        };
+        Update: {
+          competitor_websites?: string | null;
+          created_at?: string | null;
+          fixed_competitors?: string | null;
+          id?: string;
+          instagram_handle?: string | null;
+          language?: string | null;
+          name?: string;
+          niche?: string | null;
+          smm_specialist_id?: string | null;
+          status?: string | null;
+          telegram_chat_id?: string | null;
+          uuid?: string;
+        };
+        Relationships: [];
+      };
       controller_plan_tasks: {
         Row: {
           client_id: string;
@@ -148,6 +193,36 @@ export type Database = {
           last_name?: string | null;
           role?: "smm_specialist" | "manager";
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      reports: {
+        Row: {
+          analysis: string | null;
+          client_id: string | null;
+          client_name: string | null;
+          generated_at: string | null;
+          id: string;
+          scenarios: Json | null;
+          status: string | null;
+        };
+        Insert: {
+          analysis?: string | null;
+          client_id?: string | null;
+          client_name?: string | null;
+          generated_at?: string | null;
+          id?: string;
+          scenarios?: Json | null;
+          status?: string | null;
+        };
+        Update: {
+          analysis?: string | null;
+          client_id?: string | null;
+          client_name?: string | null;
+          generated_at?: string | null;
+          id?: string;
+          scenarios?: Json | null;
+          status?: string | null;
         };
         Relationships: [];
       };
