@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Send, User, Paperclip, Mic, Star } from "lucide-react";
+import { Bot, Send, User, Paperclip, Mic, Star, Sparkles } from "lucide-react";
 import { ChatMessageContent } from "@/components/chat-message-content";
 import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
 import type { AppRole } from "@/lib/auth";
@@ -118,17 +118,29 @@ export function SmmChatTab({
 
   return (
     <div className="flex h-full flex-col animate-fade-in">
-      <div className="border-b border-[#1A1A1A] px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap gap-2">
-          {starterPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              onClick={() => handleSend(prompt)}
-              className="inline-flex max-w-full items-center rounded-2xl border border-[#222222] bg-[#141414] px-3 py-2 text-left text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white sm:text-sm"
-            >
-              <span className="break-words">{prompt}</span>
-            </button>
-          ))}
+      <div className="border-b border-[#1A1A1A] bg-[#111111] px-4 py-3 sm:px-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-2xl border border-[#A78BFA]/20 bg-[#A78BFA]/10 text-[#A78BFA]">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Быстрые действия</p>
+              <p className="text-xs text-[#8B93A7]">Выберите готовый запрос или напишите свой</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {starterPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => handleSend(prompt)}
+                className="shrink-0 rounded-2xl border border-[#222222] bg-[#141414] px-3 py-2 text-xs text-[#C9D1E1] transition-all duration-200 hover:border-[#A78BFA]/30 hover:bg-[#191919] hover:text-white sm:text-sm"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
