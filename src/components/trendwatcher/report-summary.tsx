@@ -11,36 +11,32 @@ function extractLinks(value: string) {
   return value.match(/https?:\/\/[^\s<]+/g) ?? [];
 }
 
-function renderLinkedText(value: string, color: string) {
-  const links = extractLinks(value);
+function removeLinks(value: string) {
+  return value.replace(/https?:\/\/[^\s<]+/g, "").replace(/\s{2,}/g, " ").trim();
+}
 
-  if (links.length === 0) {
-    return <p className="text-sm leading-6 text-[#E5E7EB]">{value}</p>;
+function splitIntoChunks(value: string) {
+  return removeLinks(value)
+    .replace(/\n+/g, "\n")
+    .split(/\n{2,}|(?<=\.)\s+(?=[A-ZА-ЯЁ0-9«"])/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildTitleAndPoints(value: string) {
+  const parts = splitIntoChunks(value);
+
+  if (parts.length === 0) {
+    return {
+      title: "Без краткого описания",
+      points: [],
+    };
   }
 
-  const firstLink = links[0];
-  const label = value.replace(firstLink, "").trim() || firstLink;
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm leading-6 text-[#E5E7EB]">{label}</p>
-      <a
-        href={firstLink}
-        target="_blank"
-        rel="noreferrer noopener"
-        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:opacity-85"
-        style={{
-          color,
-          background: `${color}12`,
-          borderColor: `${color}28`,
-        }}
-      >
-        <Link2 className="h-3.5 w-3.5" />
-        <span className="max-w-[280px] truncate">{firstLink}</span>
-        <ArrowUpRight className="h-3.5 w-3.5" />
-      </a>
-    </div>
-  );
+  return {
+    title: parts[0],
+    points: parts.slice(1),
+  };
 }
 
 function SummaryLinkCard({
@@ -54,6 +50,9 @@ function SummaryLinkCard({
   icon: React.ReactNode;
   color: string;
 }) {
+  const links = extractLinks(value);
+  const { title, points } = buildTitleAndPoints(value);
+
   return (
     <div className="rounded-[28px] border border-[#2A3548] bg-[#10151F] p-4 sm:p-5">
       <div className="flex items-start gap-3">
@@ -80,7 +79,47 @@ function SummaryLinkCard({
           </div>
 
           <div className="rounded-2xl border border-[#202938] bg-[#121822] p-4">
-            {renderLinkedText(value, color)}
+            <p className="text-base font-semibold leading-7 text-white">{title}</p>
+
+            {points.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {points.map((point, index) => (
+                  <div
+                    key={`${label}-point-${index}`}
+                    className="flex items-start gap-3 rounded-2xl border border-[#263245] bg-[#0F141C] px-3 py-3"
+                  >
+                    <span
+                      className="mt-1 h-2 w-2 flex-shrink-0 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    <p className="text-sm leading-6 text-[#D9E1EE]">{point}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {links.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {links.map((link) => (
+                  <a
+                    key={link}
+                    href={link}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:opacity-85"
+                    style={{
+                      color,
+                      background: `${color}12`,
+                      borderColor: `${color}28`,
+                    }}
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    <span className="max-w-[220px] truncate">{link}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
