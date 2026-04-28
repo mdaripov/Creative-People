@@ -13,6 +13,7 @@ import {
   UserCheck,
   Sparkles,
   Briefcase,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +97,7 @@ export function ClientSidebar({
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [rawCount, setRawCount] = useState(0);
+  const [cabinetSection, setCabinetSection] = useState<"clients" | "specialists">("clients");
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -152,6 +154,12 @@ export function ClientSidebar({
   );
 
   if (mode === "cabinet") {
+    const visibleClients = cabinetSection === "clients" ? clients : assignedClients;
+    const sectionTitle =
+      cabinetSection === "clients"
+        ? `Все клиенты (${clients.length})`
+        : `SMM специалисты (${assignedClients.length})`;
+
     return (
       <div className="w-full flex flex-col h-full bg-[#111111] border-r border-[#1E1E1E]">
         <div className="px-5 py-5 border-b border-[#1E1E1E]">
@@ -165,7 +173,7 @@ export function ClientSidebar({
                   Личный кабинет
                 </h1>
                 <p className="text-[10px] text-[#6B7280] leading-tight">
-                  Мои клиенты и наставник
+                  Клиенты и кабинеты команды
                 </p>
               </div>
             )}
@@ -173,27 +181,77 @@ export function ClientSidebar({
         </div>
 
         {!collapsed && (
-          <div className="p-3 border-b border-[#1E1E1E]">
-            <button
-              onClick={onOpenMentor}
-              className="w-full flex items-center gap-3 rounded-2xl border border-[#A78BFA]/25 bg-[#A78BFA]/10 px-3 py-3 text-left transition-all duration-200 hover:bg-[#A78BFA]/15"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#A78BFA]/25 bg-[#A78BFA]/10 text-[#A78BFA]">
-                <Sparkles className="h-4 w-4" />
+          <>
+            <div className="p-3 border-b border-[#1E1E1E]">
+              <button
+                onClick={onOpenMentor}
+                className="w-full flex items-center gap-3 rounded-2xl border border-[#A78BFA]/25 bg-[#A78BFA]/10 px-3 py-3 text-left transition-all duration-200 hover:bg-[#A78BFA]/15"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#A78BFA]/25 bg-[#A78BFA]/10 text-[#A78BFA]">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">ИИ СММ наставник</p>
+                  <p className="text-[11px] text-[#B9A7F8]">Быстрый переход в чат</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="p-3 border-b border-[#1E1E1E]">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setCabinetSection("clients")}
+                  className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
+                  style={{
+                    borderColor:
+                      cabinetSection === "clients" ? "rgba(56,189,248,0.35)" : "#2A2A2A",
+                    background:
+                      cabinetSection === "clients" ? "rgba(56,189,248,0.12)" : "#151515",
+                  }}
+                >
+                  <Briefcase
+                    className="h-4 w-4"
+                    style={{
+                      color: cabinetSection === "clients" ? "#38BDF8" : "#8B93A7",
+                    }}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-white">Клиенты</p>
+                    <p className="text-[11px] text-[#8B93A7]">Все компании</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setCabinetSection("specialists")}
+                  className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
+                  style={{
+                    borderColor:
+                      cabinetSection === "specialists" ? "rgba(52,211,153,0.35)" : "#2A2A2A",
+                    background:
+                      cabinetSection === "specialists" ? "rgba(52,211,153,0.12)" : "#151515",
+                  }}
+                >
+                  <Users
+                    className="h-4 w-4"
+                    style={{
+                      color: cabinetSection === "specialists" ? "#34D399" : "#8B93A7",
+                    }}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-white">SMM специалисты</p>
+                    <p className="text-[11px] text-[#8B93A7]">Личные кабинеты</p>
+                  </div>
+                </button>
               </div>
-              <div>
-                <p className="text-sm font-medium text-white">ИИ СММ наставник</p>
-                <p className="text-[11px] text-[#B9A7F8]">Быстрый переход в чат</p>
-              </div>
-            </button>
-          </div>
+            </div>
+          </>
         )}
 
         <div className="flex-1 overflow-y-auto py-2">
           {!collapsed && (
             <div className="px-3 py-2">
               <p className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider px-2 mb-1">
-                Выбранные клиенты ({assignedClients.length})
+                {sectionTitle}
               </p>
             </div>
           )}
@@ -202,9 +260,9 @@ export function ClientSidebar({
             <div className="px-5 py-8 flex items-center justify-center">
               <Loader2 className="w-5 h-5 text-[#6B7280] animate-spin" />
             </div>
-          ) : assignedClients.length > 0 ? (
-            <ul className={`space-y-0.5 ${collapsed ? "px-2" : "px-2"}`}>
-              {assignedClients.map((client) => {
+          ) : visibleClients.length > 0 ? (
+            <ul className="space-y-0.5 px-2">
+              {visibleClients.map((client) => {
                 const isSelected = selectedClientId === client.id;
 
                 return (
@@ -234,7 +292,7 @@ export function ClientSidebar({
                                 isSelected ? "text-[#555]" : "text-[#6B7280]"
                               }`}
                             >
-                              {client.industry}
+                              {cabinetSection === "clients" ? client.industry : "Личный кабинет"}
                             </p>
                           </div>
                           <StatusDot status={client.status} />
@@ -248,9 +306,15 @@ export function ClientSidebar({
           ) : (
             !collapsed && (
               <div className="px-5 py-8 text-center space-y-2">
-                <p className="text-sm text-[#6B7280]">Нет выбранных клиентов</p>
+                <p className="text-sm text-[#6B7280]">
+                  {cabinetSection === "clients"
+                    ? "Нет клиентов"
+                    : "Нет выбранных кабинетов специалистов"}
+                </p>
                 <p className="text-xs text-[#8B93A7]">
-                  Добавьте клиентов из основного списка, чтобы они появились здесь.
+                  {cabinetSection === "clients"
+                    ? "Клиенты загрузятся здесь автоматически."
+                    : "Выбранные кабинеты специалистов будут отображаться в этом разделе."}
                 </p>
               </div>
             )
