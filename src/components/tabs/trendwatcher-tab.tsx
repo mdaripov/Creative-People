@@ -19,6 +19,7 @@ import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import {
   getPlatformOptions,
+  getMatchScore,
   normalizeReport,
   type ReportRecord,
   type TrendPriority,
@@ -37,47 +38,6 @@ function dedupeReports(reports: ReportRecord[]) {
   });
 
   return Array.from(map.values());
-}
-
-function normalizeLoose(value: string | null | undefined) {
-  return (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()"'’”“?<>@+|[\]\\]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
-  const normalizedClientName = normalizeLoose(clientName);
-  const normalizedClientId = normalizeLoose(clientId);
-
-  const exactMatches = reports.filter((report) => {
-    return report.client_id === clientId || report.client_name === clientName;
-  });
-
-  if (exactMatches.length > 0) {
-    return exactMatches.sort((a, b) =>
-      (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
-    );
-  }
-
-  const normalizedMatches = reports.filter((report) => {
-    const reportClientName = normalizeLoose(report.client_name);
-    const reportClientId = normalizeLoose(report.client_id);
-
-    return (
-      reportClientId === normalizedClientId ||
-      reportClientName === normalizedClientName ||
-      reportClientId === normalizedClientName ||
-      reportClientName === normalizedClientId
-    );
-  });
-
-  return normalizedMatches.sort((a, b) =>
-    (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
-  );
 }
 
 function SectionShell({
@@ -201,6 +161,29 @@ function EmptyReportState({
       </section>
     </div>
   );
+}
+
+function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
+  const scoredReports = reports
+    .map((report) => ({
+      report,
+      score: getMatchScore(report, clientName, clientId),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.report.generated_at ?? "").localeCompare(a.report.generated_at ?? "");
+    });
+
+  if (scoredReports.length === 0) {
+    return [];
+  }
+
+  const bestScore = scoredReports[0].score;
+
+  return scoredReports
+    .filter((item) => item.score >= Math.max(bestScore - 20, 50))
+    .map((item) => item.report);
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
