@@ -1,12 +1,13 @@
 "use client";
 
-import { Calendar, Layers3, Lightbulb, Rocket, Signal } from "lucide-react";
+import { ArrowUpRight, Calendar, Layers3, Lightbulb, Rocket, Signal } from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedTrendItem, ViewMode } from "@/lib/trendwatcher";
 
 interface TrendCardProps {
   item: NormalizedTrendItem;
   viewMode: ViewMode;
+  featured?: boolean;
 }
 
 const priorityConfig = {
@@ -14,95 +15,135 @@ const priorityConfig = {
     label: "Высокий приоритет",
     color: "#FBBF24",
     bg: "rgba(251,191,36,0.10)",
-    border: "rgba(251,191,36,0.24)",
+    border: "rgba(251,191,36,0.28)",
+    rail: "#FBBF24",
   },
   medium: {
     label: "Средний приоритет",
     color: "#38BDF8",
     bg: "rgba(56,189,248,0.10)",
-    border: "rgba(56,189,248,0.24)",
+    border: "rgba(56,189,248,0.26)",
+    rail: "#38BDF8",
   },
   low: {
     label: "Низкий приоритет",
     color: "#9CA3AF",
     bg: "rgba(156,163,175,0.10)",
     border: "rgba(156,163,175,0.24)",
+    rail: "#6B7280",
   },
 };
 
-export function TrendCard({ item, viewMode }: TrendCardProps) {
+export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) {
   const priority = priorityConfig[item.priority];
 
   return (
-    <div className="rounded-3xl border border-[#2A2A2A] bg-[#121212] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)] sm:p-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[#A78BFA]/24 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
-              {item.platform}
-            </span>
-            <span className="rounded-full border border-[#2A2A2A] bg-[#171717] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
-              {item.category}
-            </span>
+    <div
+      className="relative overflow-hidden rounded-[30px] border bg-[#121822] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)] sm:p-5"
+      style={{
+        borderColor: featured ? priority.border : "#2A3548",
+      }}
+    >
+      <div
+        className="absolute left-0 top-0 h-full w-1.5"
+        style={{ background: priority.rail }}
+      />
+
+      <div className="pl-2">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[#A78BFA]/24 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
+                {item.platform}
+              </span>
+              <span className="rounded-full border border-[#2A3548] bg-[#171E2A] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
+                {item.category}
+              </span>
+            </div>
+            <h4 className="text-lg font-semibold leading-snug text-white">{item.title}</h4>
           </div>
-          <h4 className="text-base font-semibold leading-snug text-white">{item.title}</h4>
+
+          <span
+            className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold"
+            style={{
+              color: priority.color,
+              background: priority.bg,
+              borderColor: priority.border,
+            }}
+          >
+            {priority.label}
+          </span>
         </div>
 
-        <span
-          className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold"
-          style={{
-            color: priority.color,
-            background: priority.bg,
-            borderColor: priority.border,
-          }}
-        >
-          {priority.label}
-        </span>
+        <div className="mb-4 rounded-2xl border border-[#2A3548] bg-[#10151F] p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+            Quick read
+          </p>
+          <p className="text-sm leading-6 text-[#E5E7EB]">
+            {item.whyItMatters.split("\n")[0]}
+          </p>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#2A3548] bg-[#171E2A] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
+              <Lightbulb className="h-3.5 w-3.5" />
+              Почему это важно
+            </div>
+            <FormattedRichText text={item.whyItMatters} accent="#A78BFA" compact />
+          </div>
+
+          <div className="rounded-2xl border border-[#2A3548] bg-[#171E2A] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#34D399]">
+              <Rocket className="h-3.5 w-3.5" />
+              Что делать
+            </div>
+            <p className="text-sm leading-6 text-[#E5E7EB]">{item.action}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#2A3548] bg-[#10151F] p-3">
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
+              <Calendar className="h-3.5 w-3.5" />
+              Свежесть
+            </div>
+            <p className="text-sm text-[#E5E7EB]">{item.freshness}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#2A3548] bg-[#10151F] p-3">
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
+              <Layers3 className="h-3.5 w-3.5" />
+              Источник
+            </div>
+            <p className="break-words text-sm text-[#E5E7EB]">{item.source}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#2A3548] bg-[#10151F] p-3">
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              Эффект
+            </div>
+            <p className="text-sm text-[#E5E7EB]">
+              {item.priority === "high"
+                ? "Сигнал для быстрого запуска"
+                : item.priority === "medium"
+                ? "Подходит для ближайшего теста"
+                : "Можно держать в резерве"}
+            </p>
+          </div>
+        </div>
+
+        {viewMode === "detailed" ? (
+          <div className="mt-4 rounded-2xl border border-[#2A3548] bg-[#161D29] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">
+              <Signal className="h-3.5 w-3.5" />
+              Полный разбор
+            </div>
+            <FormattedRichText text={item.rawText} accent="#A78BFA" compact />
+          </div>
+        ) : null}
       </div>
-
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[#222222] bg-[#171717] p-3">
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
-            <Calendar className="h-3.5 w-3.5" />
-            Свежесть
-          </div>
-          <p className="text-sm text-[#E5E7EB]">{item.freshness}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#222222] bg-[#171717] p-3">
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
-            <Layers3 className="h-3.5 w-3.5" />
-            Источник
-          </div>
-          <p className="text-sm text-[#E5E7EB] break-words">{item.source}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#222222] bg-[#171717] p-3">
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
-            <Rocket className="h-3.5 w-3.5" />
-            Действие
-          </div>
-          <p className="text-sm text-[#E5E7EB]">{item.action}</p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
-        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
-          <Lightbulb className="h-3.5 w-3.5" />
-          Почему это важно
-        </div>
-        <FormattedRichText text={item.whyItMatters} accent="#A78BFA" compact />
-      </div>
-
-      {viewMode === "detailed" ? (
-        <div className="mt-4 rounded-2xl border border-[#242424] bg-[#161616] p-4">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">
-            <Signal className="h-3.5 w-3.5" />
-            Полный разбор
-          </div>
-          <FormattedRichText text={item.rawText} accent="#A78BFA" compact />
-        </div>
-      ) : null}
     </div>
   );
 }

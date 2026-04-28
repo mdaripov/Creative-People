@@ -1,12 +1,13 @@
 "use client";
 
-import { CheckCircle2, ClipboardPen, Layers3, Megaphone, WandSparkles } from "lucide-react";
+import { CheckCircle2, ClipboardPen, Layers3, Megaphone, Rocket, WandSparkles } from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedScenarioItem, ViewMode } from "@/lib/trendwatcher";
 
 interface ScenarioCardProps {
   item: NormalizedScenarioItem;
   viewMode: ViewMode;
+  featured?: boolean;
 }
 
 const statusConfig = {
@@ -14,14 +15,14 @@ const statusConfig = {
     label: "Готов к тесту",
     color: "#34D399",
     bg: "rgba(52,211,153,0.10)",
-    border: "rgba(52,211,153,0.24)",
+    border: "rgba(52,211,153,0.28)",
     icon: CheckCircle2,
   },
   adapt: {
     label: "Нужна адаптация",
     color: "#FBBF24",
     bg: "rgba(251,191,36,0.10)",
-    border: "rgba(251,191,36,0.24)",
+    border: "rgba(251,191,36,0.28)",
     icon: WandSparkles,
   },
   raw: {
@@ -33,23 +34,28 @@ const statusConfig = {
   },
 };
 
-export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
+export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardProps) {
   const status = statusConfig[item.status];
   const StatusIcon = status.icon;
 
   return (
-    <div className="rounded-3xl border border-[#2A2A2A] bg-[#121212] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)] sm:p-5">
+    <div
+      className="rounded-[30px] border bg-[#121822] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.015)] sm:p-5"
+      style={{
+        borderColor: featured ? status.border : "#2A3548",
+      }}
+    >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-[#34D399]/24 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
               {item.platform}
             </span>
-            <span className="rounded-full border border-[#2A2A2A] bg-[#171717] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
+            <span className="rounded-full border border-[#2A3548] bg-[#171E2A] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
               {item.format}
             </span>
           </div>
-          <h4 className="text-base font-semibold text-white">{item.title}</h4>
+          <h4 className="text-lg font-semibold text-white">{item.title}</h4>
         </div>
 
         <span
@@ -65,18 +71,18 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
         </span>
       </div>
 
-      <div className="grid gap-3">
-        {item.hook ? (
-          <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
-              <Megaphone className="h-3.5 w-3.5" />
-              Hook
-            </div>
-            <FormattedRichText text={item.hook} accent="#A78BFA" compact />
+      {item.hook ? (
+        <div className="mb-3 rounded-2xl border border-[#2A3548] bg-[#10151F] p-4">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
+            <Megaphone className="h-3.5 w-3.5" />
+            Hook
           </div>
-        ) : null}
+          <FormattedRichText text={item.hook} accent="#A78BFA" compact />
+        </div>
+      ) : null}
 
-        <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
+      <div className="grid gap-3">
+        <div className="rounded-2xl border border-[#2A3548] bg-[#171E2A] p-4">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#34D399]">
             <Layers3 className="h-3.5 w-3.5" />
             Структура
@@ -85,7 +91,7 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
+          <div className="rounded-2xl border border-[#2A3548] bg-[#10151F] p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
               CTA
             </p>
@@ -96,10 +102,11 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
             />
           </div>
 
-          <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#2A3548] bg-[#10151F] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+              <Rocket className="h-3.5 w-3.5 text-[#FBBF24]" />
               Ожидаемый эффект
-            </p>
+            </div>
             <FormattedRichText
               text={item.expectedEffect || "Оценить после первого теста"}
               accent="#FBBF24"
@@ -109,13 +116,16 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
         </div>
 
         {item.bullets.length > 0 ? (
-          <div className="rounded-2xl border border-[#242424] bg-[#171717] p-4">
+          <div className="rounded-2xl border border-[#2A3548] bg-[#171E2A] p-4">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
-              Шаги и детали
+              Checklist / шаги
             </p>
             <div className="space-y-2">
               {item.bullets.map((bullet, index) => (
-                <div key={`${item.id}-bullet-${index}`} className="rounded-2xl border border-[#202020] bg-[#121212] px-3 py-3">
+                <div
+                  key={`${item.id}-bullet-${index}`}
+                  className="rounded-2xl border border-[#253042] bg-[#121822] px-3 py-3"
+                >
                   <FormattedRichText text={bullet} accent="#34D399" compact />
                 </div>
               ))}
@@ -125,7 +135,7 @@ export function ScenarioCard({ item, viewMode }: ScenarioCardProps) {
       </div>
 
       {viewMode === "detailed" ? (
-        <div className="mt-4 rounded-2xl border border-[#242424] bg-[#161616] p-4">
+        <div className="mt-4 rounded-2xl border border-[#2A3548] bg-[#161D29] p-4">
           <FormattedRichText text={item.rawText} accent="#34D399" compact />
         </div>
       ) : null}

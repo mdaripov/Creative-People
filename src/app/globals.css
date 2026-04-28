@@ -56,12 +56,24 @@
     --status-active: 158 64% 52%;
     --status-paused: 0 0% 45%;
     --status-review: 43 96% 56%;
+
+    /* Trendwatcher accent tokens */
+    --tw-surface: 220 31% 13%;
+    --tw-surface-2: 221 28% 10%;
+    --tw-cyan: 199 89% 60%;
+    --tw-violet: 258 89% 76%;
+    --tw-emerald: 158 64% 52%;
+    --tw-amber: 43 96% 56%;
+    --tw-pink: 330 84% 70%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground;

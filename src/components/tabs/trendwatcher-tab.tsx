@@ -1,21 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  FileText,
-  Loader2,
-  Sparkles,
-  Target,
-  TrendingUp,
-} from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { FormattedRichText } from "@/components/formatted-rich-text";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
 import { FilterBar } from "@/components/trendwatcher/filter-bar";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
+import { SectionAnchorNav } from "@/components/trendwatcher/section-anchor-nav";
+import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
+import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
 import {
   getPlatformOptions,
   getMatchScore,
@@ -25,6 +21,8 @@ import {
   type ViewMode,
 } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
+
+type FeedType = "all" | "trends" | "competitors" | "scenarios";
 
 function dedupeReports(reports: ReportRecord[]) {
   const map = new Map<string, ReportRecord>();
@@ -40,12 +38,14 @@ function dedupeReports(reports: ReportRecord[]) {
 }
 
 function SectionShell({
+  id,
   title,
   subtitle,
   icon,
   accent,
   children,
 }: {
+  id: string;
   title: string;
   subtitle: string;
   icon: React.ReactNode;
@@ -53,7 +53,10 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-5">
+    <section
+      id={id}
+      className="scroll-mt-40 rounded-[28px] border border-[#2A3548] bg-[#171E2A] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-5"
+    >
       <div className="mb-4 flex items-start gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-2xl border"
@@ -71,14 +74,10 @@ function SectionShell({
   );
 }
 
-function EmptyReportState({
-  clientName,
-}: {
-  clientName: string;
-}) {
+function EmptyReportState({ clientName }: { clientName: string }) {
   return (
     <div className="space-y-5">
-      <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-6 sm:p-8">
+      <section className="rounded-[28px] border border-[#2A3548] bg-[#171E2A] p-6 sm:p-8">
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
             <TrendingUp className="h-5 w-5" />
@@ -124,6 +123,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [selectedReportId, setSelectedReportId] = useState<string>("");
   const [selectedPlatform, setSelectedPlatform] = useState("Все платформы");
   const [selectedPriority, setSelectedPriority] = useState<"all" | TrendPriority>("all");
+  const [selectedType, setSelectedType] = useState<FeedType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
 
   useEffect(() => {
@@ -206,31 +206,79 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         selectedPlatform === "Все платформы" || item.platform === selectedPlatform;
       const matchesPriority =
         selectedPriority === "all" || item.priority === selectedPriority;
+      const matchesType = selectedType === "all" || selectedType === "trends";
 
-      return matchesPlatform && matchesPriority;
+      return matchesPlatform && matchesPriority && matchesType;
     });
-  }, [activeReport, selectedPlatform, selectedPriority]);
+  }, [activeReport, selectedPlatform, selectedPriority, selectedType]);
 
   const filteredCompetitors = useMemo(() => {
     if (!activeReport) return [];
 
     return activeReport.competitors.filter((item) => {
-      return selectedPlatform === "Все платформы" || item.platform === selectedPlatform;
+      const matchesPlatform =
+        selectedPlatform === "Все платформы" || item.platform === selectedPlatform;
+      const matchesType = selectedType === "all" || selectedType === "competitors";
+
+      return matchesPlatform && matchesType;
     });
-  }, [activeReport, selectedPlatform]);
+  }, [activeReport, selectedPlatform, selectedType]);
 
   const filteredScenarios = useMemo(() => {
     if (!activeReport) return [];
 
     return activeReport.scenarios.filter((item) => {
-      return selectedPlatform === "Все платформы" || item.platform === selectedPlatform;
+      const matchesPlatform =
+        selectedPlatform === "Все платформы" || item.platform === selectedPlatform;
+      const matchesType = selectedType === "all" || selectedType === "scenarios";
+
+      return matchesPlatform && matchesType;
     });
-  }, [activeReport, selectedPlatform]);
+  }, [activeReport, selectedPlatform, selectedType]);
+
+  const priorityTrends = useMemo(
+    () => filteredTrends.filter((item) => item.priority === "high"),
+    [filteredTrends]
+  );
+
+  const readyScenarios = useMemo(
+    () => filteredScenarios.filter((item) => item.status === "ready"),
+    [filteredScenarios]
+  );
+
+  const remainingTrends = useMemo(
+    () => filteredTrends.filter((item) => item.priority !== "high"),
+    [filteredTrends]
+  );
+
+  const remainingScenarios = useMemo(
+    () => filteredScenarios.filter((item) => item.status !== "ready"),
+    [filteredScenarios]
+  );
+
+  const remainingItemsCount =
+    remainingTrends.length + remainingScenarios.length;
+
+  const hasActiveFilters =
+    selectedPlatform !== "Все платформы" ||
+    selectedPriority !== "all" ||
+    selectedType !== "all";
+
+  const handleResetFilters = () => {
+    setSelectedPlatform("Все платформы");
+    setSelectedPriority("all");
+    setSelectedType("all");
+  };
+
+  const analysisSummary =
+    activeReport?.analysis.split("\n").find((line) => line.trim()) ||
+    activeReport?.summary.primaryFocus ||
+    "Сначала пройдите по приоритетной ленте, а затем при необходимости откройте полный анализ.";
 
   if (isLoadingReports) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <div className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] py-20">
+        <div className="rounded-[28px] border border-[#2A3548] bg-[#171E2A] py-20">
           <div className="flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-[#9AA4B8]" />
           </div>
@@ -263,73 +311,114 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         onPlatformChange={setSelectedPlatform}
         selectedPriority={selectedPriority}
         onPriorityChange={setSelectedPriority}
+        selectedType={selectedType}
+        onTypeChange={setSelectedType}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        hasActiveFilters={hasActiveFilters}
+        onReset={handleResetFilters}
       />
 
-      {activeReport.analysis ? (
-        <SectionShell
-          title="Общий анализ"
-          subtitle="Основной текст аналитики из поля analysis в таблице reports."
-          icon={<FileText className="h-5 w-5" />}
-          accent="#F472B6"
-        >
-          <div className="rounded-3xl border border-[#2A2A2A] bg-[#111111] p-4 sm:p-5">
-            <FormattedRichText text={activeReport.analysis} accent="#F472B6" />
-          </div>
-        </SectionShell>
-      ) : null}
+      <SectionAnchorNav
+        items={[
+          { id: "priority-trends", label: "Тренды", count: filteredTrends.length },
+          { id: "ready-scenarios", label: "Сценарии", count: filteredScenarios.length },
+          { id: "competitors", label: "Конкуренты", count: filteredCompetitors.length },
+          { id: "analysis", label: "Анализ" },
+        ]}
+      />
 
-      <SectionShell
-        title="Тренды"
-        subtitle="Что происходит сейчас, почему это важно и что стоит запускать первым."
-        icon={<TrendingUp className="h-5 w-5" />}
-        accent="#A78BFA"
-      >
-        {filteredTrends.length > 0 ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {filteredTrends.map((item) => (
-              <TrendCard key={item.id} item={item} viewMode={viewMode} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#B6C0D4]">По текущим фильтрам тренды не найдены.</p>
-        )}
-      </SectionShell>
+      {filteredTrends.length === 0 &&
+      filteredScenarios.length === 0 &&
+      filteredCompetitors.length === 0 ? (
+        <EmptyFilterState
+          title="По текущим фильтрам ничего не найдено"
+          description="Сейчас лента пуста, потому что выбранные фильтры слишком узкие для этого отчёта. Сбросьте их и вернитесь к полному обзору."
+          onReset={handleResetFilters}
+        />
+      ) : (
+        <div className="space-y-5">
+          {priorityTrends.length > 0 ? (
+            <SectionShell
+              id="priority-trends"
+              title="Приоритетные тренды"
+              subtitle="Самые сильные сигналы, которые стоит смотреть и обсуждать первыми."
+              icon={<TrendingUp className="h-5 w-5" />}
+              accent="#FBBF24"
+            >
+              <div className="grid gap-4 xl:grid-cols-2">
+                {priorityTrends.map((item) => (
+                  <TrendCard key={item.id} item={item} viewMode={viewMode} featured />
+                ))}
+              </div>
+            </SectionShell>
+          ) : null}
 
-      <SectionShell
-        title="Конкуренты"
-        subtitle="Быстрый benchmark: что у других сработало и как это адаптировать без прямого копирования."
-        icon={<Target className="h-5 w-5" />}
-        accent="#38BDF8"
-      >
-        {filteredCompetitors.length > 0 ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {filteredCompetitors.map((item) => (
-              <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#B6C0D4]">По текущим фильтрам конкуренты не найдены.</p>
-        )}
-      </SectionShell>
+          {readyScenarios.length > 0 ? (
+            <SectionShell
+              id="ready-scenarios"
+              title="Сценарии, готовые к тесту"
+              subtitle="Production-ready блоки, которые уже ближе всего к передаче в работу команде."
+              icon={<Zap className="h-5 w-5" />}
+              accent="#34D399"
+            >
+              <div className="grid gap-4 xl:grid-cols-2">
+                {readyScenarios.map((item) => (
+                  <ScenarioCard key={item.id} item={item} viewMode={viewMode} featured />
+                ))}
+              </div>
+            </SectionShell>
+          ) : null}
 
-      <SectionShell
-        title="Сценарии"
-        subtitle="Production-ready заготовки для команды: формат, hook, структура и ожидаемый эффект."
-        icon={<Sparkles className="h-5 w-5" />}
-        accent="#34D399"
-      >
-        {filteredScenarios.length > 0 ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {filteredScenarios.map((item) => (
-              <ScenarioCard key={item.id} item={item} viewMode={viewMode} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#B6C0D4]">По текущим фильтрам сценарии не найдены.</p>
-        )}
-      </SectionShell>
+          {filteredCompetitors.length > 0 ? (
+            <SectionShell
+              id="competitors"
+              title="Конкурентные наблюдения"
+              subtitle="Что у других реально сработало, что можно адаптировать и где важно не копировать в лоб."
+              icon={<Target className="h-5 w-5" />}
+              accent="#38BDF8"
+            >
+              <div className="grid gap-4 xl:grid-cols-2">
+                {filteredCompetitors.map((item) => (
+                  <CompetitorCard key={item.id} item={item} viewMode={viewMode} />
+                ))}
+              </div>
+            </SectionShell>
+          ) : null}
+
+          {remainingItemsCount > 0 ? (
+            <SectionShell
+              id="rest-feed"
+              title="Остальные материалы"
+              subtitle="Спокойный слой ленты для второго прохода после ключевых приоритетов."
+              icon={<Sparkles className="h-5 w-5" />}
+              accent="#A78BFA"
+            >
+              <div className="space-y-4">
+                {remainingTrends.length > 0 ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {remainingTrends.map((item) => (
+                      <TrendCard key={item.id} item={item} viewMode={viewMode} />
+                    ))}
+                  </div>
+                ) : null}
+
+                {remainingScenarios.length > 0 ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {remainingScenarios.map((item) => (
+                      <ScenarioCard key={item.id} item={item} viewMode={viewMode} />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </SectionShell>
+          ) : null}
+
+          {activeReport.analysis ? (
+            <AnalysisPanel analysis={activeReport.analysis} summary={analysisSummary} />
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
