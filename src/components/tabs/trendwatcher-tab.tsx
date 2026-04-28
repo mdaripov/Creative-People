@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Database,
   Loader2,
   Sparkles,
   Target,
@@ -38,12 +39,39 @@ function dedupeReports(reports: ReportRecord[]) {
   return Array.from(map.values());
 }
 
+function normalizeLoose(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()"'’”“?<>@+|[\]\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
+  const normalizedClientName = normalizeLoose(clientName);
+  const normalizedClientId = normalizeLoose(clientId);
+
   return reports
-    .map((report) => ({
-      report,
-      score: getMatchScore(report, clientName, clientId),
-    }))
+    .map((report) => {
+      const score = getMatchScore(report, clientName, clientId);
+      const reportClientName = normalizeLoose(report.client_name ?? "");
+      const reportClientId = normalizeLoose(report.client_id ?? "");
+
+      const fallbackMatch =
+        reportClientName.includes(normalizedClientName) ||
+        normalizedClientName.includes(reportClientName) ||
+        reportClientId.includes(normalizedClientId) ||
+        normalizedClientId.includes(reportClientId) ||
+        reportClientId.includes(normalizedClientName) ||
+        reportClientName.includes(normalizedClientId);
+
+      return {
+        report,
+        score: score > 0 ? score : fallbackMatch ? 40 : 0,
+      };
+    })
     .filter((item) => item.score > 0)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
@@ -84,7 +112,15 @@ function SectionShell({
   );
 }
 
-function EmptyReportState({ clientName }: { clientName: string }) {
+function EmptyReportState({
+  clientName,
+  matchedCount,
+  totalCount,
+}: {
+  clientName: string;
+  matchedCount: number;
+  totalCount: number;
+}) {
   return (
     <div className="space-y-5">
       <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-6 sm:p-8">
@@ -95,9 +131,12 @@ function EmptyReportState({ clientName }: { clientName: string }) {
           <div>
             <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
-              Для клиента {clientName} ещё не найдено подходящего отчёта в таблице reports.
-              Когда запись появится или совпадёт по имени клиента, вкладка заполнится автоматически.
+              Для клиента {clientName} не найдено совпадающих записей в reports.
             </p>
+            <div className="mt-4 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4 text-sm text-[#8B93A7]">
+              <p>Всего загружено отчётов: {totalCount}</p>
+              <p>Совпадений для этого клиента: {matchedCount}</p>
+            </div>
           </div>
         </div>
       </section>
@@ -107,6 +146,7 @@ function EmptyReportState({ clientName }: { clientName: string }) {
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
   const [selectedPlatform, setSelectedPlatform] = useState("Все платформы");
@@ -129,9 +169,10 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
       const localRows = (fallbackReports as ReportRecord[]) ?? [];
       const mergedReports = dedupeReports([...supabaseRows, ...localRows]);
-      const matchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
+      const nextMatchedReports = getClientReports(mergedReports, data.client.name, data.client.id);
 
-      setReports(matchedReports);
+      setReports(mergedReports);
+      setMatchedReports(nextMatchedReports);
       setIsLoadingReports(false);
     };
 
@@ -143,8 +184,8 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
-    return reports.map((report) => normalizeReport(report, "Данные из reports"));
-  }, [reports]);
+    return matchedReports.map((report) => normalizeReport(report, "Данные из reports"));
+  }, [matchedReports]);
 
   useEffect(() => {
     if (!normalizedReports.length) {
@@ -211,13 +252,45 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <EmptyReportState clientName={data.client.name} />
+        <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
+          <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
+              <Database className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
+              <p className="text-xs text-[#8B93A7]">
+                Всего загружено: {reports.length} · Совпало для клиента: {matchedReports.length}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <EmptyReportState
+          clientName={data.client.name}
+          matchedCount={matchedReports.length}
+          totalCount={reports.length}
+        />
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in space-y-5 p-4 sm:p-6">
+      <section className="rounded-[28px] border border-[#2A2A2A] bg-[#171717] p-4 sm:p-5">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#2A2A2A] bg-[#111111] p-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
+            <Database className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">Проверка загрузки reports</p>
+            <p className="text-xs text-[#8B93A7]">
+              Всего загружено: {reports.length} · Совпало для клиента: {matchedReports.length}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <ReportSummary report={activeReport} />
 
       <ReportSwitcher
