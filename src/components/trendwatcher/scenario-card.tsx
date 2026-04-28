@@ -5,7 +5,6 @@ import {
   ClipboardPen,
   Layers3,
   Megaphone,
-  Rocket,
   WandSparkles,
 } from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
@@ -78,49 +77,48 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
         </span>
       </div>
 
-      {item.hook ? (
-        <div className="mb-3 rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
-            <Megaphone className="h-3.5 w-3.5" />
-            Hook
+      <div className="space-y-3">
+        {item.hook ? (
+          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
+              <Megaphone className="h-3.5 w-3.5" />
+              Hook
+            </div>
+            <FormattedRichText text={item.hook} accent="#A78BFA" compact />
           </div>
-          <FormattedRichText text={item.hook} accent="#A78BFA" compact />
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="grid gap-3">
         <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#34D399]">
             <Layers3 className="h-3.5 w-3.5" />
-            Структура
+            Сценарий
           </div>
           <FormattedRichText text={item.structure} accent="#34D399" compact />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {(item.cta || item.expectedEffect) && (
           <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
-              CTA
-            </p>
-            <FormattedRichText
-              text={item.cta || "Добавить явный следующий шаг"}
-              accent="#38BDF8"
-              compact
-            />
-          </div>
+            <div className="space-y-3">
+              {item.cta ? (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#38BDF8]">
+                    CTA
+                  </p>
+                  <FormattedRichText text={item.cta} accent="#38BDF8" compact />
+                </div>
+              ) : null}
 
-          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
-              <Rocket className="h-3.5 w-3.5 text-[#FBBF24]" />
-              Эффект
+              {item.expectedEffect ? (
+                <div className={item.cta ? "border-t border-[#212C3B] pt-3" : ""}>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#FBBF24]">
+                    Ожидаемый эффект
+                  </p>
+                  <FormattedRichText text={item.expectedEffect} accent="#FBBF24" compact />
+                </div>
+              ) : null}
             </div>
-            <FormattedRichText
-              text={item.expectedEffect || "Оценить после первого теста"}
-              accent="#FBBF24"
-              compact
-            />
           </div>
-        </div>
+        )}
 
         {item.bullets.length > 0 ? (
           <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
