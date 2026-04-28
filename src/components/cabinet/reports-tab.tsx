@@ -100,6 +100,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
   const [drafts, setDrafts] = useState<Record<string, ReportEntry>>({});
   const [editingIds, setEditingIds] = useState<string[]>([]);
   const [selectedClient, setSelectedClient] = useState("all");
+  const [selectedSpecialist, setSelectedSpecialist] = useState("all");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
@@ -175,10 +176,19 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
     return () => window.clearTimeout(timeout);
   }, [newEntryId, entries.length, selectedClient]);
 
+  const specialistOptions = useMemo(() => {
+    return Array.from(new Set(entries.map((entry) => entry.specialistName))).sort((a, b) =>
+      a.localeCompare(b, "ru")
+    );
+  }, [entries]);
+
   const filteredEntries = useMemo(() => {
     const result = entries.filter((entry) => {
       const matchesClient = selectedClient === "all" || entry.client === selectedClient;
-      return matchesClient;
+      const matchesSpecialist =
+        selectedSpecialist === "all" || entry.specialistName === selectedSpecialist;
+
+      return matchesClient && matchesSpecialist;
     });
 
     return [...result].sort((a, b) => {
@@ -190,15 +200,19 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
 
       return b.startTime.localeCompare(a.startTime);
     });
-  }, [entries, selectedClient, newEntryId]);
+  }, [entries, selectedClient, selectedSpecialist, newEntryId]);
 
   const totalForSelectedDate = useMemo(() => {
-    const durations = entries
+    const durations = filteredEntries
       .filter((entry) => entry.date === selectedDate)
       .map((entry) => durationBetween(entry.startTime, entry.endTime));
 
     return addDurations(durations);
-  }, [entries, selectedDate]);
+  }, [filteredEntries, selectedDate]);
+
+  const reportsForSelectedDate = useMemo(() => {
+    return filteredEntries.filter((entry) => entry.date === selectedDate).length;
+  }, [filteredEntries, selectedDate]);
 
   const startEditing = (entry: ReportEntry) => {
     setDrafts((prev) => ({
@@ -368,31 +382,33 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               <h2 className="text-2xl font-semibold text-white sm:text-3xl">Отчёты по задачам</h2>
               <p className="mt-2 max-w-2xl text-sm text-[#8B93A7]">
                 {role === "manager"
-                  ? "Здесь отображаются отчёты всех SMM-специалистов команды."
+                  ? "Контрольная таблица по всем отчетам команды: кто, по какому клиенту и сколько времени отработал."
                   : "Ведите отчёт по времени, задачам и клиентам в одном аккуратном табличном интерфейсе."}
               </p>
             </div>
 
-            <Button
-              onClick={addEntry}
-              disabled={isMutating}
-              className="rounded-2xl bg-[#38BDF8] px-4 text-white hover:bg-[#22AEEA] disabled:opacity-60"
-            >
-              {isMutating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              Быстро добавить запись
-            </Button>
+            {role === "smm_specialist" && (
+              <Button
+                onClick={addEntry}
+                disabled={isMutating}
+                className="rounded-2xl bg-[#38BDF8] px-4 text-white hover:bg-[#22AEEA] disabled:opacity-60"
+              >
+                {isMutating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Быстро добавить запись
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
           <div className="rounded-[24px] border border-[#1E1E1E] bg-[#151515] p-4">
             <div className="mb-3 flex items-center gap-2">
               <Filter className="h-4 w-4 text-[#A78BFA]" />
-              <p className="text-sm font-semibold text-white">Фильтр по клиенту</p>
+              <p className="text-sm font-semibold text-white">Клиент</p>
             </div>
             <select
               value={selectedClient}
@@ -407,6 +423,27 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
               ))}
             </select>
           </div>
+
+          {role === "manager" && (
+            <div className="rounded-[24px] border border-[#1E1E1E] bg-[#151515] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <UserRound className="h-4 w-4 text-[#38BDF8]" />
+                <p className="text-sm font-semibold text-white">SMM специалист</p>
+              </div>
+              <select
+                value={selectedSpecialist}
+                onChange={(event) => setSelectedSpecialist(event.target.value)}
+                className="w-full rounded-2xl border border-[#262626] bg-[#101010] px-4 py-3 text-sm text-white outline-none"
+              >
+                <option value="all">Вся команда</option>
+                {specialistOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="rounded-[24px] border border-[#1E1E1E] bg-[#151515] p-4">
             <div className="mb-3 flex items-center gap-2">
@@ -424,11 +461,14 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
           <div className="rounded-[24px] border border-[#1E1E1E] bg-[#151515] p-4">
             <div className="mb-3 flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-[#FBBF24]" />
-              <p className="text-sm font-semibold text-white">Итого за день</p>
+              <p className="text-sm font-semibold text-white">Сводка за день</p>
             </div>
             <div className="rounded-2xl border border-[#FBBF24]/20 bg-[#FBBF24]/10 px-4 py-3">
               <p className="text-xs text-[#E7C768]">{formatDisplayDate(selectedDate)}</p>
               <p className="mt-1 text-2xl font-bold text-white">{totalForSelectedDate}</p>
+              <p className="mt-1 text-xs text-[#FDE68A]">
+                Записей: {reportsForSelectedDate}
+              </p>
             </div>
           </div>
         </div>
@@ -611,7 +651,7 @@ export function ReportsTab({ clients, userId, role }: ReportsTabProps) {
                 {!isLoading && filteredEntries.length === 0 ? (
                   <tr>
                     <td colSpan={role === "manager" ? 9 : 8} className="px-4 py-10 text-center text-sm text-[#8B93A7]">
-                      По выбранному фильтру записей пока нет.
+                      По выбранным фильтрам записей пока нет.
                     </td>
                   </tr>
                 ) : null}
