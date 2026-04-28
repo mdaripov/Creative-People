@@ -1,6 +1,13 @@
 "use client";
 
-import { CheckCircle2, ClipboardPen, Layers3, Megaphone, Rocket, WandSparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardPen,
+  Layers3,
+  Megaphone,
+  Rocket,
+  WandSparkles,
+} from "lucide-react";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedScenarioItem, ViewMode } from "@/lib/trendwatcher";
 
@@ -14,14 +21,14 @@ const statusConfig = {
   ready: {
     label: "Готов к тесту",
     color: "#34D399",
-    bg: "rgba(52,211,153,0.10)",
+    bg: "rgba(52,211,153,0.12)",
     border: "rgba(52,211,153,0.26)",
     icon: CheckCircle2,
   },
   adapt: {
     label: "Нужна адаптация",
     color: "#FBBF24",
-    bg: "rgba(251,191,36,0.10)",
+    bg: "rgba(251,191,36,0.12)",
     border: "rgba(251,191,36,0.26)",
     icon: WandSparkles,
   },
@@ -40,22 +47,22 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
 
   return (
     <div
-      className="rounded-[26px] border bg-[#131A25] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.015)]"
+      className="rounded-[24px] border bg-[#141A23] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
       style={{
-        borderColor: featured ? status.border : "#263245",
+        borderColor: featured ? status.border : "#253041",
       }}
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[#34D399]/22 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
+            <span className="rounded-full border border-[#34D399]/20 bg-[#34D399]/10 px-3 py-1 text-[11px] font-semibold text-[#86EFAC]">
               {item.platform}
             </span>
-            <span className="rounded-full border border-[#2A3548] bg-[#171E2A] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
+            <span className="rounded-full border border-[#253041] bg-[#101620] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
               {item.format}
             </span>
           </div>
-          <h4 className="text-lg font-semibold text-white">{item.title}</h4>
+          <h4 className="text-base font-semibold text-white sm:text-lg">{item.title}</h4>
         </div>
 
         <span
@@ -72,7 +79,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
       </div>
 
       {item.hook ? (
-        <div className="mb-3 rounded-2xl bg-[#10151F] p-4">
+        <div className="mb-3 rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
             <Megaphone className="h-3.5 w-3.5" />
             Hook
@@ -82,7 +89,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
       ) : null}
 
       <div className="grid gap-3">
-        <div className="rounded-2xl bg-[#171E2A] p-4">
+        <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#34D399]">
             <Layers3 className="h-3.5 w-3.5" />
             Структура
@@ -91,8 +98,8 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-[#10151F] p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
               CTA
             </p>
             <FormattedRichText
@@ -102,8 +109,8 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
             />
           </div>
 
-          <div className="rounded-2xl bg-[#10151F] p-4">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
               <Rocket className="h-3.5 w-3.5 text-[#FBBF24]" />
               Эффект
             </div>
@@ -116,15 +123,15 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
         </div>
 
         {item.bullets.length > 0 ? (
-          <div className="rounded-2xl bg-[#171E2A] p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
               Checklist
             </p>
             <div className="space-y-2">
               {item.bullets.map((bullet, index) => (
                 <div
                   key={`${item.id}-bullet-${index}`}
-                  className="rounded-2xl bg-[#121822] px-3 py-3"
+                  className="rounded-2xl border border-[#202938] bg-[#121822] px-3 py-3"
                 >
                   <FormattedRichText text={bullet} accent="#34D399" compact />
                 </div>
@@ -135,7 +142,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
       </div>
 
       {viewMode === "detailed" ? (
-        <div className="mt-4 rounded-2xl border border-[#263245] bg-[#10151F] p-4">
+        <div className="mt-4 rounded-2xl border border-[#253041] bg-[#0F141C] p-4">
           <FormattedRichText text={item.rawText} accent="#34D399" compact />
         </div>
       ) : null}

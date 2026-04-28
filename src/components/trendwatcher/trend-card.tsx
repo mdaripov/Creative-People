@@ -14,14 +14,14 @@ const priorityConfig = {
   high: {
     label: "Высокий приоритет",
     color: "#FBBF24",
-    bg: "rgba(251,191,36,0.10)",
+    bg: "rgba(251,191,36,0.12)",
     border: "rgba(251,191,36,0.26)",
     rail: "#FBBF24",
   },
   medium: {
     label: "Средний приоритет",
     color: "#38BDF8",
-    bg: "rgba(56,189,248,0.10)",
+    bg: "rgba(56,189,248,0.12)",
     border: "rgba(56,189,248,0.24)",
     rail: "#38BDF8",
   },
@@ -39,9 +39,9 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
 
   return (
     <div
-      className="relative overflow-hidden rounded-[26px] border bg-[#131A25] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.015)]"
+      className="relative overflow-hidden rounded-[24px] border bg-[#141A23] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
       style={{
-        borderColor: featured ? priority.border : "#263245",
+        borderColor: featured ? priority.border : "#253041",
       }}
     >
       <div
@@ -53,14 +53,16 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-[#A78BFA]/22 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
+              <span className="rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/10 px-3 py-1 text-[11px] font-semibold text-[#C4B5FD]">
                 {item.platform}
               </span>
-              <span className="rounded-full border border-[#2A3548] bg-[#171E2A] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
+              <span className="rounded-full border border-[#253041] bg-[#101620] px-3 py-1 text-[11px] font-semibold text-[#C5CEE0]">
                 {item.category}
               </span>
             </div>
-            <h4 className="text-lg font-semibold leading-snug text-white">{item.title}</h4>
+            <h4 className="text-base font-semibold leading-snug text-white sm:text-lg">
+              {item.title}
+            </h4>
           </div>
 
           <span
@@ -75,8 +77,8 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
           </span>
         </div>
 
-        <div className="mb-4 rounded-2xl border border-[#263245] bg-[#10151F] p-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+        <div className="mb-4 rounded-2xl border border-[#253041] bg-[#0F141C] p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
             Что происходит
           </p>
           <p className="text-sm leading-6 text-[#E5E7EB]">
@@ -85,7 +87,7 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl bg-[#171E2A] p-4">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A78BFA]">
               <Lightbulb className="h-3.5 w-3.5" />
               Почему важно
@@ -93,7 +95,7 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
             <FormattedRichText text={item.whyItMatters} accent="#A78BFA" compact />
           </div>
 
-          <div className="rounded-2xl bg-[#171E2A] p-4">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#171E2A] p-4">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#34D399]">
               <Rocket className="h-3.5 w-3.5" />
               Что делать
@@ -103,16 +105,16 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-[#10151F] p-3">
-            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-3">
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7F8CA3]">
               <Calendar className="h-3.5 w-3.5" />
               Свежесть
             </div>
             <p className="text-sm text-[#E5E7EB]">{item.freshness}</p>
           </div>
 
-          <div className="rounded-2xl bg-[#10151F] p-3">
-            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8EA0BE]">
+          <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-3">
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7F8CA3]">
               <Layers3 className="h-3.5 w-3.5" />
               Источник
             </div>
@@ -121,7 +123,7 @@ export function TrendCard({ item, viewMode, featured = false }: TrendCardProps) 
         </div>
 
         {viewMode === "detailed" ? (
-          <div className="mt-4 rounded-2xl border border-[#263245] bg-[#10151F] p-4">
+          <div className="mt-4 rounded-2xl border border-[#253041] bg-[#0F141C] p-4">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">
               <Signal className="h-3.5 w-3.5" />
               Полный разбор

@@ -1,6 +1,13 @@
 "use client";
 
-import { Eye, ListFilter, PanelTop, RotateCcw, Rows3, SlidersHorizontal } from "lucide-react";
+import {
+  Eye,
+  ListFilter,
+  PanelTop,
+  RotateCcw,
+  Rows3,
+  SlidersHorizontal,
+} from "lucide-react";
 import type { TrendPriority, ViewMode } from "@/lib/trendwatcher";
 
 interface FilterBarProps {
@@ -18,7 +25,7 @@ interface FilterBarProps {
 }
 
 const priorities: Array<{ value: "all" | TrendPriority; label: string }> = [
-  { value: "all", label: "Все приоритеты" },
+  { value: "all", label: "Все" },
   { value: "high", label: "Высокий" },
   { value: "medium", label: "Средний" },
   { value: "low", label: "Низкий" },
@@ -48,11 +55,12 @@ function ChipButton({
   return (
     <button
       onClick={onClick}
-      className="whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-all"
+      className="whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200"
       style={{
-        color: active ? color : "#C5CEE0",
-        background: active ? `${color}18` : "#111722",
-        borderColor: active ? `${color}40` : "#2A3548",
+        color: active ? "#FFFFFF" : "#B8C2D6",
+        background: active ? color : "#121821",
+        borderColor: active ? color : "#263245",
+        boxShadow: active ? `0 0 0 1px ${color}` : "none",
       }}
     >
       {label}
@@ -74,27 +82,27 @@ export function FilterBar({
   onReset,
 }: FilterBarProps) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-[#253042]/70 bg-[#0F141C]/88 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-      <div className="rounded-[24px] border border-[#263245] bg-[#151C27]/95 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-4">
+    <div className="sticky top-0 z-20 -mx-4 border-b border-[#202938]/80 bg-[#0D121A]/88 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6">
+      <div className="rounded-[20px] border border-[#202A39] bg-[#111722]/92 px-3 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:px-4">
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-[#A78BFA]" />
                 <h3 className="text-sm font-semibold text-white">Управление просмотром</h3>
               </div>
-              <p className="mt-1 text-[11px] text-[#8EA0BE]">
-                Быстрые фильтры для чтения отчёта без перегруза.
+              <p className="mt-1 text-[11px] text-[#7F8CA3]">
+                Компактные фильтры для быстрого просмотра отчёта.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 self-start rounded-full border border-[#2A3548] bg-[#10151F] p-1">
+            <div className="inline-flex w-full rounded-full border border-[#263245] bg-[#0F141C] p-1 xl:w-auto">
               <button
                 onClick={() => onViewModeChange("overview")}
-                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
                 style={{
-                  color: viewMode === "overview" ? "#A78BFA" : "#C5CEE0",
-                  background: viewMode === "overview" ? "rgba(167,139,250,0.10)" : "transparent",
+                  color: viewMode === "overview" ? "#FFFFFF" : "#B8C2D6",
+                  background: viewMode === "overview" ? "#A78BFA" : "transparent",
                 }}
               >
                 <PanelTop className="h-3.5 w-3.5" />
@@ -102,21 +110,21 @@ export function FilterBar({
               </button>
               <button
                 onClick={() => onViewModeChange("detailed")}
-                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all xl:flex-none"
                 style={{
-                  color: viewMode === "detailed" ? "#38BDF8" : "#C5CEE0",
-                  background: viewMode === "detailed" ? "rgba(56,189,248,0.10)" : "transparent",
+                  color: viewMode === "detailed" ? "#FFFFFF" : "#B8C2D6",
+                  background: viewMode === "detailed" ? "#38BDF8" : "transparent",
                 }}
               >
                 <Eye className="h-3.5 w-3.5" />
-                Детали
+                Детально
               </button>
             </div>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-[1.1fr_1.1fr_0.9fr_auto]">
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+          <div className="grid gap-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
                 <Rows3 className="h-3.5 w-3.5 text-[#38BDF8]" />
                 Тип
               </div>
@@ -126,15 +134,15 @@ export function FilterBar({
                     key={type.value}
                     active={type.value === selectedType}
                     label={type.label}
-                    color="#38BDF8"
+                    color="#1E40AF"
                     onClick={() => onTypeChange(type.value)}
                   />
                 ))}
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
                 <ListFilter className="h-3.5 w-3.5 text-[#A78BFA]" />
                 Платформа
               </div>
@@ -144,15 +152,15 @@ export function FilterBar({
                     key={platform}
                     active={platform === selectedPlatform}
                     label={platform}
-                    color="#A78BFA"
+                    color="#6D28D9"
                     onClick={() => onPlatformChange(platform)}
                   />
                 ))}
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8EA0BE]">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7F8CA3]">
                 <ListFilter className="h-3.5 w-3.5 text-[#34D399]" />
                 Приоритет
               </div>
@@ -162,7 +170,7 @@ export function FilterBar({
                     key={priority.value}
                     active={priority.value === selectedPriority}
                     label={priority.label}
-                    color="#34D399"
+                    color="#047857"
                     onClick={() => onPriorityChange(priority.value)}
                   />
                 ))}
@@ -173,13 +181,13 @@ export function FilterBar({
               {hasActiveFilters ? (
                 <button
                   onClick={onReset}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#2A3548] bg-[#10151F] px-4 py-2 text-xs font-semibold text-[#D1D9E8] transition-colors hover:bg-[#131B27]"
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-[#263245] bg-[#0F141C] px-4 text-xs font-semibold text-[#D1D9E8] transition-colors hover:bg-[#151C28]"
                 >
                   <RotateCcw className="h-3.5 w-3.5 text-[#FBBF24]" />
                   Сбросить
                 </button>
               ) : (
-                <div className="h-9" />
+                <div className="h-10" />
               )}
             </div>
           </div>
