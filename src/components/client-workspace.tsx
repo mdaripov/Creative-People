@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sparkles,
   FolderCheck,
@@ -28,6 +28,10 @@ const tabs = [
   { id: "client-report", label: "Отчёт клиенту", icon: FileText, color: "#F472B6" },
 ];
 
+function getDraftStorageKey(clientId: string) {
+  return `dyad-smm-draft:${clientId}`;
+}
+
 export function ClientWorkspace({
   data,
   userId,
@@ -38,6 +42,15 @@ export function ClientWorkspace({
   role: AppRole;
 }) {
   const [activeTab, setActiveTab] = useState("trends");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const draft = window.localStorage.getItem(getDraftStorageKey(data.client.id));
+    if (draft) {
+      setActiveTab("smm-chat");
+    }
+  }, [data.client.id]);
 
   return (
     <div className="flex h-full flex-col animate-fade-in">

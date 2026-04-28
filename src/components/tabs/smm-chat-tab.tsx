@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bot, Send, User, Paperclip, Mic, Star } from "lucide-react";
 import { ChatMessageContent } from "@/components/chat-message-content";
 import { useApprovedSmmItems } from "@/hooks/use-approved-smm-items";
@@ -22,6 +22,10 @@ const starterPrompts = [
 
 const WEBHOOK_URL = "https://n8n19643.hostkey.in/webhook/client-agent";
 
+function getDraftStorageKey(clientId: string) {
+  return `dyad-smm-draft:${clientId}`;
+}
+
 export function SmmChatTab({
   data,
   userId,
@@ -41,6 +45,18 @@ export function SmmChatTab({
       text: `Привет! Я ИИ SMM-агент для ${data.client.name}. Могу помочь с контент-планом, идеями, ТЗ и стратегией.`,
     },
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageKey = getDraftStorageKey(data.client.id);
+    const draft = window.localStorage.getItem(storageKey);
+
+    if (draft) {
+      setInput(draft);
+      window.localStorage.removeItem(storageKey);
+    }
+  }, [data.client.id]);
 
   const approveMessage = (message: Message) => {
     if (message.role !== "agent") return;

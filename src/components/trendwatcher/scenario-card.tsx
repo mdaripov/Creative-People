@@ -5,8 +5,10 @@ import {
   ClipboardPen,
   Layers3,
   Megaphone,
+  Send,
   WandSparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { FormattedRichText } from "@/components/formatted-rich-text";
 import type { NormalizedScenarioItem, ViewMode } from "@/lib/trendwatcher";
 
@@ -45,11 +47,74 @@ function isMeaningfulValue(value: string) {
   return Boolean(normalized) && normalized !== "все платформы" && normalized !== "не указан";
 }
 
+function buildScenarioDraft(item: NormalizedScenarioItem) {
+  const parts = [
+    `Улучши и доработай этот сценарий для публикации.`,
+    ``,
+    `Название: ${item.title}`,
+    isMeaningfulValue(item.platform) ? `Платформа: ${item.platform}` : "",
+    isMeaningfulValue(item.format) ? `Формат: ${item.format}` : "",
+    item.hook ? `Хук:\n${item.hook}` : "",
+    item.structure ? `Сценарий:\n${item.structure}` : "",
+    item.cta ? `CTA:\n${item.cta}` : "",
+    item.expectedEffect ? `Ожидаемый эффект:\n${item.expectedEffect}` : "",
+    item.bullets.length > 0
+      ? `Checklist:\n${item.bullets.map((bullet, index) => `${index + 1}. ${bullet}`).join("\n")}`
+      : "",
+  ].filter(Boolean);
+
+  return parts.join("\n\n");
+}
+
+function getDraftStorageKey(title: string) {
+  return `dyad-smm-draft:${title}`;
+}
+
 export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardProps) {
   const status = statusConfig[item.status];
   const StatusIcon = status.icon;
   const showPlatform = isMeaningfulValue(item.platform);
   const showFormat = isMeaningfulValue(item.format);
+
+  const handleSendToSmm = () => {
+    if (typeof window === "undefined") return;
+
+    const clientWorkspace = window.location.pathname;
+    const draft = buildScenarioDraft(item);
+
+    const clientIdFromPath = clientWorkspace;
+    void clientIdFromPath;
+
+    const buttons = document.querySelectorAll("button");
+    buttons.forEach(() => {});
+
+    const storageKeys = Object.keys(window.localStorage).filter((key) =>
+      key.startsWith("dyad-smm-draft:")
+    );
+
+    storageKeys.forEach((key) => {
+      if (!key.endsWith(item.title)) return;
+    });
+
+    const possibleClientId = window.location.pathname;
+    void possibleClientId;
+
+    const selectedClientButton = document.querySelector("[data-selected-client-id]");
+    void selectedClientButton;
+
+    const allKeys = Object.keys(window.localStorage);
+    const existingDraftKey = allKeys.find((key) => key.startsWith("dyad-smm-draft:"));
+
+    if (existingDraftKey) {
+      const clientId = existingDraftKey.replace("dyad-smm-draft:", "");
+      window.localStorage.setItem(`dyad-smm-draft:${clientId}`, draft);
+    } else {
+      window.localStorage.setItem(getDraftStorageKey(item.title), draft);
+    }
+
+    toast.success("Сценарий добавлен в ИИ СММ для доработки");
+    window.location.reload();
+  };
 
   return (
     <div
@@ -88,6 +153,16 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
           <StatusIcon className="h-3.5 w-3.5" />
           {status.label}
         </span>
+      </div>
+
+      <div className="mb-4">
+        <button
+          onClick={handleSendToSmm}
+          className="inline-flex items-center gap-2 rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 px-4 py-2.5 text-sm font-semibold text-[#C4B5FD] transition-all duration-200 hover:bg-[#A78BFA]/20"
+        >
+          <Send className="h-4 w-4" />
+          Отправить в ИИ СММ для доработки
+        </button>
       </div>
 
       <div className="space-y-3">
