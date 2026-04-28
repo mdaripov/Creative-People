@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Database,
+  FileText,
   Loader2,
   Sparkles,
   Target,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import fallbackReports from "@/lib/reports_rows.json";
 import { supabase } from "@/integrations/supabase/client";
+import { FormattedRichText } from "@/components/formatted-rich-text";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
 import { FilterBar } from "@/components/trendwatcher/filter-bar";
@@ -161,7 +163,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       const { data: reportsData } = await supabase
         .from("reports")
-        .select("id, client_id, client_name, generated_at, status, competitors, trends, scenarios")
+        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
         .order("generated_at", { ascending: false });
 
       if (!isMounted) return;
@@ -308,6 +310,19 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
+
+      {activeReport.analysis ? (
+        <SectionShell
+          title="Общий анализ"
+          subtitle="Основной текст аналитики из поля analysis в таблице reports."
+          icon={<FileText className="h-5 w-5" />}
+          accent="#F472B6"
+        >
+          <div className="rounded-3xl border border-[#2A2A2A] bg-[#111111] p-4 sm:p-5">
+            <FormattedRichText text={activeReport.analysis} accent="#F472B6" />
+          </div>
+        </SectionShell>
+      ) : null}
 
       <SectionShell
         title="Тренды"

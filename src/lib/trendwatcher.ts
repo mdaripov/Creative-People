@@ -4,6 +4,7 @@ export type ReportRecord = {
   client_name: string | null;
   generated_at: string | null;
   status: string | null;
+  analysis: unknown;
   competitors: unknown;
   trends: unknown;
   scenarios: unknown;
@@ -65,6 +66,7 @@ export interface NormalizedReport {
   title: string;
   status: string;
   generatedAt: string | null;
+  analysis: string;
   trends: NormalizedTrendItem[];
   competitors: NormalizedCompetitorItem[];
   scenarios: NormalizedScenarioItem[];
@@ -154,6 +156,7 @@ export function unwrapStructuredValue(value: unknown): unknown {
   if ("analytics" in objectValue) return objectValue.analytics;
   if ("trends" in objectValue) return objectValue.trends;
   if ("competitors" in objectValue) return objectValue.competitors;
+  if ("analysis" in objectValue) return objectValue.analysis;
   if ("data" in objectValue) return unwrapStructuredValue(objectValue.data);
   if ("report" in objectValue) return unwrapStructuredValue(objectValue.report);
   if ("result" in objectValue) return unwrapStructuredValue(objectValue.result);
@@ -368,10 +371,16 @@ function actionByPriority(priority: TrendPriority) {
 }
 
 function derivePrimaryFocus(report: {
+  analysis: string;
   trends: NormalizedTrendItem[];
   competitors: NormalizedCompetitorItem[];
   scenarios: NormalizedScenarioItem[];
 }) {
+  if (report.analysis) {
+    const firstLine = splitLongText(report.analysis)[0];
+    if (firstLine) return firstLine;
+  }
+
   const topTrend = [...report.trends].sort(
     (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)
   )[0];
@@ -663,17 +672,44 @@ function getCollection(value: unknown) {
   return [];
 }
 
+function normalizeAnalysis(value: unknown) {
+  const normalized = normalizeAny(value);
+
+  if (typeof normalized === "string") {
+    return splitLongText(normalized).join("\n\n");
+  }
+
+  if (Array.isArray(normalized)) {
+    return normalized
+      .map((item) =>
+        typeof item === "string"
+          ? item
+          : typeof item === "object" && item
+            ? formatObjectToRichText(item as Record<string, unknown>)
+            : String(item)
+      )
+      .join("\n\n");
+  }
+
+  if (normalized && typeof normalized === "object") {
+    return formatObjectToRichText(normalized as Record<string, unknown>);
+  }
+
+  return "";
+}
+
 function formatUpdatedLabel(date: string | null) {
   if (!date) return "Дата не указана";
   return new Date(date).toLocaleString("ru-RU");
 }
 
 export function normalizeReport(report: ReportRecord, sourceLabel: string): NormalizedReport {
+  const analysis = normalizeAnalysis(report.analysis);
   const trends = getCollection(report.trends).map(normalizeTrendItem);
   const competitors = getCollection(report.competitors).map(normalizeCompetitorItem);
   const scenarios = getCollection(report.scenarios).map(normalizeScenarioItem);
 
-  const totalInsights = trends.length + competitors.length + scenarios.length;
+  const totalInsights = trends.length + competitors.length + scenarios.length + (analysis ? 1 : 0);
   const priorityInsights = trends.filter((item) => item.priority === "high").length;
   const readyToTest = scenarios.filter((item) => item.status === "ready").length;
 
@@ -682,6 +718,7 @@ export function normalizeReport(report: ReportRecord, sourceLabel: string): Norm
     title: report.client_name || report.client_id || "Отчёт по трендам",
     status: report.status || "new",
     generatedAt: report.generated_at,
+    analysis,
     trends,
     competitors,
     scenarios,
@@ -689,7 +726,7 @@ export function normalizeReport(report: ReportRecord, sourceLabel: string): Norm
       totalInsights,
       priorityInsights,
       readyToTest,
-      primaryFocus: derivePrimaryFocus({ trends, competitors, scenarios }),
+      primaryFocus: derivePrimaryFocus({ analysis, trends, competitors, scenarios }),
       updatedLabel: formatUpdatedLabel(report.generated_at),
       sourceLabel,
     },
