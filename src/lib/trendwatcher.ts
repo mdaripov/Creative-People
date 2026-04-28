@@ -102,6 +102,43 @@ function getMeaningfulWords(value: string) {
     .filter((word) => word.length >= 3);
 }
 
+function isNoiseLine(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim().toLowerCase();
+
+  if (!normalized) return true;
+  if (normalized === "—" || normalized === "-") return true;
+
+  if (
+    normalized.includes("tiktok: —") ||
+    normalized.includes("сайт: —") ||
+    normalized.includes("instagram: —") ||
+    normalized.includes("website: —")
+  ) {
+    return true;
+  }
+
+  if (
+    normalized.includes("топ посты") ||
+    normalized.includes("каждый пост") ||
+    normalized.includes("из данных выше для этого аккаунта")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function cleanDisplayText(value: string) {
+  return value
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => !isNoiseLine(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function getMatchScore(report: ReportRecord, clientName: string, clientId: string) {
   const reportClientId = normalizeMatchText(report.client_id);
   const reportClientName = normalizeMatchText(report.client_name);
@@ -242,12 +279,14 @@ export function prettifyKey(key: string) {
 }
 
 function splitLongText(value: string) {
-  return value
-    .replace(/\\n/g, "\n")
-    .replace(/\s{2,}/g, " ")
+  return cleanDisplayText(
+    value
+      .replace(/\\n/g, "\n")
+      .replace(/\s{2,}/g, " ")
+  )
     .split(/\n{2,}|(?<=\.)\s+(?=[A-ZА-ЯЁ0-9«"(\[])/g)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter((item) => item && !isNoiseLine(item));
 }
 
 export function formatObjectToRichText(value: Record<string, unknown>) {
@@ -278,9 +317,14 @@ export function formatObjectToRichText(value: Record<string, unknown>) {
     "status",
   ];
 
-  const entries = Object.entries(value).filter(([, raw]) => {
+  const entries = Object.entries(value).filter(([key, raw]) => {
+    if (key === "tiktok" || key === "website" || key === "instagram") {
+      const text = typeof raw === "string" ? raw.trim() : "";
+      if (!text || text === "—" || text === "-") return false;
+    }
+
     if (raw === null || raw === undefined) return false;
-    if (typeof raw === "string") return raw.trim().length > 0;
+    if (typeof raw === "string") return raw.trim().length > 0 && !isNoiseLine(raw);
     if (Array.isArray(raw)) return raw.length > 0;
     return true;
   });
@@ -301,8 +345,9 @@ export function formatObjectToRichText(value: Record<string, unknown>) {
 
       if (typeof raw === "string") {
         const chunks = splitLongText(raw);
-        if (chunks.length <= 1) {
-          return `**${label}:** ${raw}`;
+        if (chunks.length === 0) return "";
+        if (chunks.length === 1) {
+          return `**${label}:** ${chunks[0]}`;
         }
 
         return `**${label}:**\n${chunks.map((chunk) => `- ${chunk}`).join("\n")}`;
@@ -312,22 +357,28 @@ export function formatObjectToRichText(value: Record<string, unknown>) {
         const items = raw
           .map((item) =>
             typeof item === "string"
-              ? `- ${item}`
+              ? item.trim()
               : typeof item === "object" && item
-                ? `- ${formatObjectToRichText(item as Record<string, unknown>).replace(/\n/g, " ")}`
-                : `- ${String(item)}`
+                ? formatObjectToRichText(item as Record<string, unknown>).replace(/\n/g, " ")
+                : String(item)
           )
+          .filter((item) => item && !isNoiseLine(item))
+          .map((item) => `- ${item}`)
           .join("\n");
 
+        if (!items) return "";
         return `**${label}:**\n${items}`;
       }
 
       if (typeof raw === "object" && raw) {
-        return `**${label}:**\n${formatObjectToRichText(raw as Record<string, unknown>)}`;
+        const nested = formatObjectToRichText(raw as Record<string, unknown>);
+        if (!nested.trim()) return "";
+        return `**${label}:**\n${nested}`;
       }
 
       return `**${label}:** ${String(raw)}`;
     })
+    .filter(Boolean)
     .join("\n\n");
 }
 
@@ -345,7 +396,7 @@ function asObject(value: unknown): Record<string, unknown> | null {
 function firstNonEmpty(...values: unknown[]) {
   for (const value of values) {
     const text = safeString(value);
-    if (text) return text;
+    if (text && !isNoiseLine(text)) return cleanDisplayText(text);
   }
   return "";
 }
@@ -402,25 +453,26 @@ function derivePrimaryFocus(report: {
 
 function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
   if (typeof item === "string") {
-    const textChunks = splitLongText(item);
+    const cleaned = cleanDisplayText(item);
+    const textChunks = splitLongText(cleaned);
     return {
       id: `trend-${index}`,
       title: textChunks[0] || `Тренд ${index + 1}`,
       platform: "Все платформы",
       category: "Инсайт",
       freshness: "Без даты",
-      whyItMatters: textChunks.slice(1).join("\n\n") || item,
+      whyItMatters: textChunks.slice(1).join("\n\n") || cleaned,
       source: "Не указан",
       priority: "medium",
       action: "Проверить у клиента",
-      rawText: item,
+      rawText: cleaned,
     };
   }
 
   const objectItem = asObject(item);
 
   if (!objectItem) {
-    const rawText = String(item);
+    const rawText = cleanDisplayText(String(item));
     const textChunks = splitLongText(rawText);
     return {
       id: `trend-${index}`,
@@ -477,24 +529,25 @@ function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
 
 function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompetitorItem {
   if (typeof item === "string") {
-    const textChunks = splitLongText(item);
+    const cleaned = cleanDisplayText(item);
+    const textChunks = splitLongText(cleaned);
     return {
       id: `competitor-${index}`,
       name: textChunks[0] || `Ориентир ${index + 1}`,
       platform: "Не указана",
       source: "Не указан",
-      observation: textChunks.slice(1).join("\n\n") || item,
+      observation: textChunks.slice(1).join("\n\n") || cleaned,
       insight: "Нужна ручная интерпретация",
       recommendation: "Проверить и адаптировать под клиента",
       differentiation: "Не копировать напрямую",
-      rawText: item,
+      rawText: cleaned,
     };
   }
 
   const objectItem = asObject(item);
 
   if (!objectItem) {
-    const rawText = String(item);
+    const rawText = cleanDisplayText(String(item));
     const textChunks = splitLongText(rawText);
     return {
       id: `competitor-${index}`,
@@ -563,26 +616,27 @@ function deriveScenarioStatus(item: Record<string, unknown>) {
 
 function normalizeScenarioItem(item: unknown, index: number): NormalizedScenarioItem {
   if (typeof item === "string") {
-    const textChunks = splitLongText(item);
+    const cleaned = cleanDisplayText(item);
+    const textChunks = splitLongText(cleaned);
     return {
       id: `scenario-${index}`,
       title: textChunks[0] || `Сценарий ${index + 1}`,
       format: "Не указан",
       platform: "Все платформы",
       hook: "",
-      structure: textChunks.slice(1).join("\n\n") || item,
+      structure: textChunks.slice(1).join("\n\n") || cleaned,
       cta: "",
       expectedEffect: "",
       bullets: [],
       status: "raw",
-      rawText: item,
+      rawText: cleaned,
     };
   }
 
   const objectItem = asObject(item);
 
   if (!objectItem) {
-    const rawText = String(item);
+    const rawText = cleanDisplayText(String(item));
     const textChunks = splitLongText(rawText);
     return {
       id: `scenario-${index}`,
@@ -608,15 +662,16 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
     ...toArray(objectItem.links),
   ]
     .map((bullet) => {
-      if (typeof bullet === "string") return bullet.trim();
+      if (typeof bullet === "string") return cleanDisplayText(bullet.trim());
 
       if (typeof bullet === "object" && bullet) {
         return formatObjectToRichText(bullet as Record<string, unknown>);
       }
 
-      return String(bullet);
+      return cleanDisplayText(String(bullet));
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((bullet) => !isNoiseLine(bullet));
 
   const rawText = formatObjectToRichText(objectItem);
 
@@ -683,11 +738,12 @@ function normalizeAnalysis(value: unknown) {
     return normalized
       .map((item) =>
         typeof item === "string"
-          ? item
+          ? cleanDisplayText(item)
           : typeof item === "object" && item
             ? formatObjectToRichText(item as Record<string, unknown>)
-            : String(item)
+            : cleanDisplayText(String(item))
       )
+      .filter(Boolean)
       .join("\n\n");
   }
 
