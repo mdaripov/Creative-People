@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
-  Database,
   ExternalLink,
   Loader2,
   Sparkles,
@@ -24,17 +22,6 @@ import type { ClientData } from "@/lib/mock-data";
 
 type FeedType = "all" | "trends" | "competitors" | "scenarios";
 
-interface TrendwatcherDebugInfo {
-  totalReports: number;
-  matchedReports: number;
-  currentClientId: string;
-  currentClientName: string;
-  sampleReportClients: Array<{
-    client_id: string | null;
-    client_name: string | null;
-  }>;
-}
-
 function normalizeValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -50,6 +37,27 @@ function dedupeReports(reports: ReportRecord[]) {
   });
 
   return Array.from(map.values());
+}
+
+function getClientReports(reports: ReportRecord[], clientName: string, clientId: string) {
+  const normalizedClientName = normalizeValue(clientName);
+  const normalizedClientId = normalizeValue(clientId);
+
+  const matched = reports.filter((report) => {
+    const reportName = normalizeValue(report.client_name);
+    const reportId = normalizeValue(report.client_id);
+
+    return (
+      reportName === normalizedClientName ||
+      reportId === normalizedClientId ||
+      (reportName && normalizedClientName && reportName.includes(normalizedClientName)) ||
+      (reportId && normalizedClientId && reportId.includes(normalizedClientId))
+    );
+  });
+
+  return matched.sort((a, b) =>
+    (b.generated_at ?? "").localeCompare(a.generated_at ?? "")
+  );
 }
 
 function SectionShell({
@@ -146,108 +154,25 @@ function CompetitorHighlightCard({
   );
 }
 
-function DebugPanel({ debug }: { debug: TrendwatcherDebugInfo }) {
+function EmptyReportState({ clientName }: { clientName: string }) {
   return (
-    <section className="rounded-[28px] border border-[#3A3220] bg-[#1C1811] p-4 sm:p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FBBF24]/25 bg-[#FBBF24]/10 text-[#FBBF24]">
-          <Database className="h-5 w-5" />
+    <section className="rounded-[28px] border border-[#2A3548] bg-[#171E2A] p-6 sm:p-8">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]">
+          <TrendingUp className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Диагностика отчётов</h3>
-          <p className="mt-1 text-sm leading-relaxed text-[#D6C7A4]">
-            Этот блок показывает, что реально пришло из базы и с чем сравнивается текущий клиент.
+          <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
+            Для клиента {clientName} в таблице reports сейчас нет подходящей записи.
           </p>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[#4A402A] bg-[#15110C] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#8B7A56]">Текущий client_id</p>
-          <p className="mt-2 break-all text-sm font-medium text-white">{debug.currentClientId}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#4A402A] bg-[#15110C] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#8B7A56]">Текущий client_name</p>
-          <p className="mt-2 break-all text-sm font-medium text-white">{debug.currentClientName}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#4A402A] bg-[#15110C] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#8B7A56]">Всего reports</p>
-          <p className="mt-2 text-sm font-medium text-white">{debug.totalReports}</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#4A402A] bg-[#15110C] p-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#8B7A56]">Совпало</p>
-          <p className="mt-2 text-sm font-medium text-white">{debug.matchedReports}</p>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-[#4A402A] bg-[#15110C] p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8B7A56]">
-          Первые client_id / client_name из reports
-        </p>
-
-        {debug.sampleReportClients.length > 0 ? (
-          <div className="space-y-2">
-            {debug.sampleReportClients.map((item, index) => (
-              <div
-                key={`${item.client_id ?? "null"}-${item.client_name ?? "null"}-${index}`}
-                className="rounded-xl border border-[#3A3220] bg-[#1A1510] px-3 py-2"
-              >
-                <p className="text-xs text-white">
-                  <span className="text-[#A89264]">client_id:</span> {item.client_id || "null"}
-                </p>
-                <p className="mt-1 text-xs text-white">
-                  <span className="text-[#A89264]">client_name:</span> {item.client_name || "null"}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#D6C7A4]">В таблице reports нет строк.</p>
-        )}
       </div>
     </section>
   );
 }
 
-function EmptyReportState({
-  clientName,
-  debug,
-}: {
-  clientName: string;
-  debug: TrendwatcherDebugInfo;
-}) {
-  return (
-    <div className="space-y-5">
-      <DebugPanel debug={debug} />
-
-      <section className="rounded-[28px] border border-[#5A2F2F] bg-[#1D1414] p-6 sm:p-8">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#EF4444]/25 bg-[#EF4444]/10 text-[#F87171]">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#E5B4B4]">
-              Для клиента {clientName} в таблице reports сейчас нет подходящей записи.
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export function TrendwatcherTab({ data }: { data: ClientData }) {
-  const [debug, setDebug] = useState<TrendwatcherDebugInfo>({
-    totalReports: 0,
-    matchedReports: 0,
-    currentClientId: data.client.id,
-    currentClientName: data.client.name,
-    sampleReportClients: [],
-  });
   const [matchedReports, setMatchedReports] = useState<ReportRecord[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -262,9 +187,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
     const fetchReports = async () => {
       setIsLoadingReports(true);
 
-      const normalizedClientName = normalizeValue(data.client.name);
-      const normalizedClientId = normalizeValue(data.client.id);
-
       const { data: reportsData } = await supabase
         .from("reports")
         .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
@@ -273,45 +195,9 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
       if (!isMounted) return;
 
       const reports = dedupeReports((reportsData as ReportRecord[] | null) ?? []);
-
-      const exactNameMatches = reports.filter(
-        (report) => normalizeValue(report.client_name) === normalizedClientName
-      );
-
-      const exactIdMatches = reports.filter(
-        (report) => normalizeValue(report.client_id) === normalizedClientId
-      );
-
-      const partialMatches = reports.filter((report) => {
-        const reportName = normalizeValue(report.client_name);
-        const reportId = normalizeValue(report.client_id);
-
-        return (
-          reportName.includes(normalizedClientName) ||
-          normalizedClientName.includes(reportName) ||
-          reportId.includes(normalizedClientId) ||
-          normalizedClientId.includes(reportId)
-        );
-      });
-
-      const nextReports =
-        exactNameMatches.length > 0
-          ? exactNameMatches
-          : exactIdMatches.length > 0
-          ? exactIdMatches
-          : partialMatches;
+      const nextReports = getClientReports(reports, data.client.name, data.client.id);
 
       setMatchedReports(nextReports);
-      setDebug({
-        totalReports: reports.length,
-        matchedReports: nextReports.length,
-        currentClientId: data.client.id,
-        currentClientName: data.client.name,
-        sampleReportClients: reports.slice(0, 8).map((report) => ({
-          client_id: report.client_id,
-          client_name: report.client_name,
-        })),
-      });
       setIsLoadingReports(false);
     };
 
@@ -428,7 +314,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   if (!activeReport) {
     return (
       <div className="animate-fade-in space-y-5 p-4 sm:p-6">
-        <EmptyReportState clientName={data.client.name} debug={debug} />
+        <EmptyReportState clientName={data.client.name} />
       </div>
     );
   }
@@ -436,8 +322,6 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   return (
     <div className="animate-fade-in h-full overflow-y-auto bg-[#0D121A]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
-        <DebugPanel debug={debug} />
-
         <ReportSwitcher
           reports={normalizedReports}
           selectedReportId={activeReport.id}
