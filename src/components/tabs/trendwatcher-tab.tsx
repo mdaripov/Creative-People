@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
 import { TrendCard } from "@/components/trendwatcher/trend-card";
@@ -16,7 +17,6 @@ import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import { AnalysisPanel } from "@/components/trendwatcher/analysis-panel";
 import { EmptyFilterState } from "@/components/trendwatcher/empty-filter-state";
-import reportRows from "@/lib/reports_rows.json";
 import { normalizeReport, type ReportRecord, type TrendPriority, type ViewMode } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
 
@@ -177,7 +177,7 @@ function EmptyReportState({ clientName }: { clientName: string }) {
         <div>
           <h3 className="text-lg font-semibold text-white">Отчёт пока не найден</h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#B6C0D4]">
-            Для клиента {clientName} не удалось найти подходящую запись отчёта.
+            Для клиента {clientName} в Supabase пока не удалось найти подходящую запись отчёта.
           </p>
         </div>
       </div>
@@ -195,17 +195,34 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   const [viewMode] = useState<ViewMode>("overview");
 
   useEffect(() => {
-    setIsLoadingReports(true);
+    let isMounted = true;
 
-    const reports = dedupeReports(reportRows as ReportRecord[]);
-    const nextReports = getClientReports(reports, data.client.name, data.client.id);
+    const fetchReports = async () => {
+      setIsLoadingReports(true);
 
-    setMatchedReports(nextReports);
-    setIsLoadingReports(false);
+      const { data: reportsData } = await supabase
+        .from("reports")
+        .select("id, client_id, client_name, generated_at, status, analysis, competitors, trends, scenarios")
+        .order("generated_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      const reports = dedupeReports((reportsData as ReportRecord[] | null) ?? []);
+      const nextReports = getClientReports(reports, data.client.name, data.client.id);
+
+      setMatchedReports(nextReports);
+      setIsLoadingReports(false);
+    };
+
+    void fetchReports();
+
+    return () => {
+      isMounted = false;
+    };
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
-    return matchedReports.map((report) => normalizeReport(report, "Данные из reports"));
+    return matchedReports.map((report) => normalizeReport(report, "Данные из Supabase reports"));
   }, [matchedReports]);
 
   useEffect(() => {
