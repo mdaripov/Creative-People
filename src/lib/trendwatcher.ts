@@ -118,6 +118,8 @@ export function unwrapStructuredValue(value: unknown): unknown {
   if ("scenarios" in objectValue) return objectValue.scenarios;
   if ("scenario_analytics" in objectValue) return objectValue.scenario_analytics;
   if ("analytics" in objectValue) return objectValue.analytics;
+  if ("trends" in objectValue) return objectValue.trends;
+  if ("competitors" in objectValue) return objectValue.competitors;
   if ("data" in objectValue) return unwrapStructuredValue(objectValue.data);
   if ("report" in objectValue) return unwrapStructuredValue(objectValue.report);
   if ("result" in objectValue) return unwrapStructuredValue(objectValue.result);
@@ -189,6 +191,10 @@ export function prettifyKey(key: string) {
     expected_result: "Ожидаемый эффект",
     difficulty: "Сложность",
     status: "Статус",
+    content: "Контент",
+    metadata: "Метаданные",
+    link: "Ссылка",
+    links: "Ссылки",
   };
 
   if (dictionary[key]) return dictionary[key];
@@ -225,6 +231,8 @@ export function formatObjectToRichText(value: Record<string, unknown>) {
     "website",
     "instagram",
     "tiktok",
+    "link",
+    "links",
     "hook",
     "script",
     "cta",
@@ -396,9 +404,17 @@ function normalizeTrendItem(item: unknown, index: number): NormalizedTrendItem {
       objectItem.summary,
       objectItem.description,
       objectItem.analysis,
-      objectItem.insight
+      objectItem.insight,
+      objectItem.text,
+      objectItem.content
     ) || "Инсайт без пояснения";
-  const source = firstNonEmpty(objectItem.source, objectItem.website, objectItem.instagram, objectItem.tiktok) || "Не указан";
+  const source = firstNonEmpty(
+    objectItem.source,
+    objectItem.website,
+    objectItem.instagram,
+    objectItem.tiktok,
+    objectItem.link
+  ) || "Не указан";
   const priority = extractPriority(objectItem);
   const rawText = formatObjectToRichText(objectItem);
 
@@ -451,14 +467,32 @@ function normalizeCompetitorItem(item: unknown, index: number): NormalizedCompet
   }
 
   const name = firstNonEmpty(objectItem.name, objectItem.title, objectItem.source) || `Ориентир ${index + 1}`;
-  const platform = firstNonEmpty(objectItem.platform, objectItem.channel, objectItem.instagram ? "Instagram" : "", objectItem.tiktok ? "TikTok" : "") || "Не указана";
-  const source = firstNonEmpty(objectItem.source, objectItem.website, objectItem.instagram, objectItem.tiktok) || "Не указан";
+  const platform = firstNonEmpty(
+    objectItem.platform,
+    objectItem.channel,
+    objectItem.instagram ? "Instagram" : "",
+    objectItem.tiktok ? "TikTok" : "",
+    objectItem.website ? "Website" : ""
+  ) || "Не указана";
+  const source = firstNonEmpty(
+    objectItem.source,
+    objectItem.website,
+    objectItem.instagram,
+    objectItem.tiktok,
+    objectItem.link
+  ) || "Не указан";
   const observation =
-    firstNonEmpty(objectItem.description, objectItem.summary, objectItem.analysis, objectItem.text) || "Наблюдение не распознано";
+    firstNonEmpty(
+      objectItem.description,
+      objectItem.summary,
+      objectItem.analysis,
+      objectItem.text,
+      objectItem.content
+    ) || "Наблюдение не распознано";
   const insight =
     firstNonEmpty(objectItem.why_works, objectItem.why_viral, objectItem.insight) || "Что сработало, нужно уточнить";
   const recommendation =
-    firstNonEmpty(objectItem.recommendation, objectItem.adaptation, objectItem.hook) || "Адаптировать подход под бренд клиента";
+    firstNonEmpty(objectItem.recommendation, objectItem.adaptation, objectItem.hook, objectItem.cta) || "Адаптировать подход под бренд клиента";
   const differentiation =
     firstNonEmpty(objectItem.risk, objectItem.comment, objectItem.note) || "Сохранять отличие по тону и подаче";
   const rawText = formatObjectToRichText(objectItem);
@@ -527,6 +561,8 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
     ...toArray(objectItem.bullets),
     ...toArray(objectItem.items),
     ...toArray(objectItem.steps),
+    ...toArray(objectItem.references),
+    ...toArray(objectItem.links),
   ]
     .map((bullet) => {
       if (typeof bullet === "string") return bullet.trim();
@@ -547,9 +583,19 @@ function normalizeScenarioItem(item: unknown, index: number): NormalizedScenario
     format: firstNonEmpty(objectItem.format, objectItem.type) || "Не указан",
     platform: firstNonEmpty(objectItem.platform, objectItem.channel) || "Все платформы",
     hook: splitLongText(firstNonEmpty(objectItem.hook, objectItem.headline)).join("\n\n"),
-    structure: splitLongText(firstNonEmpty(objectItem.script, objectItem.summary, objectItem.description) || rawText).join("\n\n"),
+    structure: splitLongText(
+      firstNonEmpty(
+        objectItem.script,
+        objectItem.summary,
+        objectItem.description,
+        objectItem.text,
+        objectItem.content
+      ) || rawText
+    ).join("\n\n"),
     cta: splitLongText(firstNonEmpty(objectItem.cta, objectItem.recommendation)).join("\n\n"),
-    expectedEffect: splitLongText(firstNonEmpty(objectItem.expected_result, objectItem.expectedEffect, objectItem.analysis)).join("\n\n"),
+    expectedEffect: splitLongText(
+      firstNonEmpty(objectItem.expected_result, objectItem.expectedEffect, objectItem.analysis)
+    ).join("\n\n"),
     bullets,
     status: deriveScenarioStatus(objectItem),
     rawText,
@@ -571,6 +617,12 @@ function getCollection(value: unknown) {
   }
 
   if (normalized && typeof normalized === "object") {
+    const objectValue = normalized as Record<string, unknown>;
+
+    if (Array.isArray(objectValue.items)) return objectValue.items;
+    if (Array.isArray(objectValue.data)) return objectValue.data;
+    if (Array.isArray(objectValue.results)) return objectValue.results;
+
     return [normalized];
   }
 
