@@ -10,6 +10,7 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
+import fallbackReports from "@/lib/reports_rows.json";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSummary } from "@/components/trendwatcher/report-summary";
 import { ReportSwitcher } from "@/components/trendwatcher/report-switcher";
@@ -18,6 +19,7 @@ import { TrendCard } from "@/components/trendwatcher/trend-card";
 import { CompetitorCard } from "@/components/trendwatcher/competitor-card";
 import { ScenarioCard } from "@/components/trendwatcher/scenario-card";
 import {
+  getMatchScore,
   getPlatformOptions,
   normalizeReport,
   type ReportRecord,
@@ -25,66 +27,6 @@ import {
   type ViewMode,
 } from "@/lib/trendwatcher";
 import type { ClientData } from "@/lib/mock-data";
-
-function normalizeSearchValue(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()"'’”“?<>@+|[\]\\]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getSearchTokens(value: string) {
-  return normalizeSearchValue(value)
-    .split(" ")
-    .filter((token) => token.length >= 3);
-}
-
-function matchesClientReport(report: ReportRecord, clientName: string, clientId: string) {
-  const reportClientId = normalizeSearchValue(report.client_id ?? "");
-  const reportClientName = normalizeSearchValue(report.client_name ?? "");
-  const normalizedClientName = normalizeSearchValue(clientName);
-  const normalizedClientId = normalizeSearchValue(clientId);
-
-  const haystack = [reportClientId, reportClientName].filter(Boolean).join(" ");
-
-  if (!haystack) return false;
-
-  if (
-    haystack === normalizedClientName ||
-    haystack === normalizedClientId ||
-    haystack.includes(normalizedClientName) ||
-    normalizedClientName.includes(haystack) ||
-    haystack.includes(normalizedClientId) ||
-    normalizedClientId.includes(haystack)
-  ) {
-    return true;
-  }
-
-  const clientTokens = [
-    ...getSearchTokens(normalizedClientName),
-    ...getSearchTokens(normalizedClientId),
-  ];
-
-  const uniqueTokens = Array.from(new Set(clientTokens));
-  const matchedTokens = uniqueTokens.filter((token) => haystack.includes(token));
-
-  if (matchedTokens.length >= 2) {
-    return true;
-  }
-
-  if (
-    normalizedClientName === "merkez kehillat herzliya" &&
-    (haystack.includes("merkez") ||
-      haystack.includes("kehillat") ||
-      haystack.includes("herzliya"))
-  ) {
-    return true;
-  }
-
-  return false;
-}
 
 function SectionShell({
   title,
@@ -142,7 +84,7 @@ function DebugReportState({ report }: { report: ReportRecord }) {
         <div>
           <h3 className="text-base font-semibold text-white">Отчёт найден, но секции пустые</h3>
           <p className="mt-1 text-sm leading-relaxed text-[#B6C0D4]">
-            Запись из базы найдена, но её содержимое пока не разобралось в карточки.
+            Запись найдена, но её содержимое пока не разобралось в карточки.
           </p>
         </div>
       </div>
@@ -150,7 +92,7 @@ function DebugReportState({ report }: { report: ReportRecord }) {
       <div className="rounded-3xl border border-[#242424] bg-[#101010] p-4">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-medium text-[#7DD3FC]">
           <Database className="h-3.5 w-3.5" />
-          Сырые данные из reports
+          Сырые данные отчёта
         </div>
         <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-[#D1D5DB]">
           {preview}
@@ -158,6 +100,19 @@ function DebugReportState({ report }: { report: ReportRecord }) {
       </div>
     </div>
   );
+}
+
+function dedupeReports(reports: ReportRecord[]) {
+  const map = new Map<string, ReportRecord>();
+
+  reports.forEach((report) => {
+    const key = report.id || `${report.client_id}-${report.generated_at}`;
+    if (!map.has(key)) {
+      map.set(key, report);
+    }
+  });
+
+  return Array.from(map.values());
 }
 
 export function TrendwatcherTab({ data }: { data: ClientData }) {
@@ -181,10 +136,18 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
 
       if (!isMounted) return;
 
-      const allReports = (reportsData as ReportRecord[] | null) ?? [];
-      const matchedReports = allReports.filter((report) =>
-        matchesClientReport(report, data.client.name, data.client.id)
-      );
+      const supabaseRows = (reportsData as ReportRecord[] | null) ?? [];
+      const localRows = (fallbackReports as ReportRecord[]) ?? [];
+      const allReports = dedupeReports([...supabaseRows, ...localRows]);
+
+      const matchedReports = allReports
+        .map((report) => ({
+          report,
+          score: getMatchScore(report, data.client.name, data.client.id),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.report);
 
       setReports(matchedReports);
       setIsLoadingReports(false);
@@ -198,7 +161,7 @@ export function TrendwatcherTab({ data }: { data: ClientData }) {
   }, [data.client.id, data.client.name]);
 
   const normalizedReports = useMemo(() => {
-    return reports.map((report) => normalizeReport(report, "Данные из Supabase"));
+    return reports.map((report) => normalizeReport(report, "Данные из Supabase / reports"));
   }, [reports]);
 
   useEffect(() => {
