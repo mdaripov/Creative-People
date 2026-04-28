@@ -48,22 +48,26 @@ function isMeaningfulValue(value: string) {
 }
 
 function buildScenarioDraft(item: NormalizedScenarioItem) {
-  const parts = [
-    `Улучши и доработай этот сценарий для публикации.`,
-    ``,
-    `Название: ${item.title}`,
-    isMeaningfulValue(item.platform) ? `Платформа: ${item.platform}` : "",
+  const metaLine = [
     isMeaningfulValue(item.format) ? `Формат: ${item.format}` : "",
-    item.hook ? `Хук:\n${item.hook}` : "",
-    item.structure ? `Сценарий:\n${item.structure}` : "",
-    item.cta ? `CTA:\n${item.cta}` : "",
-    item.expectedEffect ? `Ожидаемый эффект:\n${item.expectedEffect}` : "",
-    item.bullets.length > 0
-      ? `Checklist:\n${item.bullets.map((bullet, index) => `${index + 1}. ${bullet}`).join("\n")}`
-      : "",
-  ].filter(Boolean);
+    isMeaningfulValue(item.platform) ? `Платформа: ${item.platform}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
 
-  return parts.join("\n\n");
+  const parts = [
+    "Улучши и доработай этот сценарий для публикации.",
+    "",
+    item.title,
+    metaLine,
+    item.hook ? `Хук: ${item.hook}` : "",
+    item.structure ? `Сценарий: ${item.structure}` : "",
+    item.cta ? `CTA: ${item.cta}` : "",
+    item.expectedEffect ? `Почему сработает: ${item.expectedEffect}` : "",
+    item.bullets.length > 0 ? item.bullets.join("\n") : "",
+  ].filter((part) => part && part.trim().length > 0);
+
+  return parts.join("\n");
 }
 
 function getDraftStorageKey(clientId: string) {
@@ -89,7 +93,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
 
     const draft = buildScenarioDraft(item);
     window.localStorage.setItem(getDraftStorageKey(clientId), draft);
-    toast.success("Сценарий перенесён в ИИ СММ для доработки");
+    toast.success("Весь сценарий перенесён в ИИ СММ для доработки");
     window.location.reload();
   };
 
@@ -132,16 +136,6 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
         </span>
       </div>
 
-      <div className="mb-4">
-        <button
-          onClick={handleSendToSmm}
-          className="inline-flex items-center gap-2 rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 px-4 py-2.5 text-sm font-semibold text-[#C4B5FD] transition-all duration-200 hover:bg-[#A78BFA]/20"
-        >
-          <Send className="h-4 w-4" />
-          Отправить в ИИ СММ для доработки
-        </button>
-      </div>
-
       <div className="space-y-3">
         {item.hook ? (
           <div className="rounded-2xl border border-[#212C3B] bg-[#101620] p-4">
@@ -176,7 +170,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
               {item.expectedEffect ? (
                 <div className={item.cta ? "border-t border-[#212C3B] pt-3" : ""}>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#FBBF24]">
-                    Ожидаемый эффект
+                    Почему сработает
                   </p>
                   <FormattedRichText text={item.expectedEffect} accent="#FBBF24" compact />
                 </div>
@@ -202,6 +196,16 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="mt-4">
+        <button
+          onClick={handleSendToSmm}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#A78BFA]/30 bg-[#A78BFA]/10 px-4 py-3 text-sm font-semibold text-[#C4B5FD] transition-all duration-200 hover:bg-[#A78BFA]/20"
+        >
+          <Send className="h-4 w-4" />
+          Отправить весь сценарий в ИИ СММ для доработки
+        </button>
       </div>
 
       {viewMode === "detailed" ? (
