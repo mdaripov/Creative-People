@@ -93,8 +93,14 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
 
     const draft = buildScenarioDraft(item);
     window.localStorage.setItem(getDraftStorageKey(clientId), draft);
+
+    window.dispatchEvent(
+      new CustomEvent("dyad:open-smm-chat", {
+        detail: { clientId },
+      })
+    );
+
     toast.success("Весь сценарий перенесён в ИИ СММ для доработки");
-    window.location.reload();
   };
 
   return (
@@ -195,7 +201,7 @@ export function ScenarioCard({ item, viewMode, featured = false }: ScenarioCardP
               ))}
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
       <div className="mt-4">

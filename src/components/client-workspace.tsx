@@ -52,6 +52,23 @@ export function ClientWorkspace({
     }
   }, [data.client.id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleOpenSmmChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ clientId?: string }>;
+      if (customEvent.detail?.clientId === data.client.id) {
+        setActiveTab("smm-chat");
+      }
+    };
+
+    window.addEventListener("dyad:open-smm-chat", handleOpenSmmChat);
+
+    return () => {
+      window.removeEventListener("dyad:open-smm-chat", handleOpenSmmChat);
+    };
+  }, [data.client.id]);
+
   return (
     <div
       className="flex h-full flex-col animate-fade-in"
