@@ -5,6 +5,8 @@ import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { LockKeyhole, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type SignupRole = "smm_specialist" | "manager";
 
@@ -20,6 +22,8 @@ const roleDescriptions: Record<SignupRole, string> = {
 
 export function LoginScreen() {
   const [signupRole, setSignupRole] = useState<SignupRole>("smm_specialist");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
 
   const appearance = useMemo(
     () => ({
@@ -93,7 +97,7 @@ export function LoginScreen() {
             </div>
             <h3 className="text-sm font-semibold text-white">Самостоятельная регистрация</h3>
             <p className="mt-2 text-sm text-[#8B93A7]">
-              При регистрации можно сразу выбрать роль и создать аккаунт как SMM-специалист или руководитель.
+              При регистрации можно сразу выбрать роль и указать имя, чтобы оно отображалось в кабинете руководителя.
             </p>
           </div>
         </div>
@@ -115,7 +119,7 @@ export function LoginScreen() {
           <div className="mb-5 rounded-3xl border border-[#1E1E1E] bg-[#121212] p-4">
             <div className="mb-3 flex items-center gap-2">
               <UserCog className="h-4 w-4 text-[#A78BFA]" />
-              <p className="text-sm font-semibold text-white">Роль при регистрации</p>
+              <p className="text-sm font-semibold text-white">Данные для регистрации</p>
             </div>
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -149,8 +153,36 @@ export function LoginScreen() {
               })}
             </div>
 
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="first-name" className="text-xs text-[#C9D1E1]">
+                  Имя
+                </Label>
+                <Input
+                  id="first-name"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  placeholder="Например, Анна"
+                  className="h-11 rounded-2xl border-[#262626] bg-[#101010] text-white placeholder:text-[#6B7280]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="last-name" className="text-xs text-[#C9D1E1]">
+                  Фамилия
+                </Label>
+                <Input
+                  id="last-name"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  placeholder="Например, Иванова"
+                  className="h-11 rounded-2xl border-[#262626] bg-[#101010] text-white placeholder:text-[#6B7280]"
+                />
+              </div>
+            </div>
+
             <p className="mt-3 text-xs text-[#8B93A7]">
-              Эта роль применяется при создании нового аккаунта.
+              Имя и фамилия будут использованы при создании нового аккаунта и покажутся в кабинете руководителя.
             </p>
           </div>
 
@@ -192,6 +224,8 @@ export function LoginScreen() {
             view="sign_in"
             additionalData={{
               role: signupRole,
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
             }}
           />
         </div>
