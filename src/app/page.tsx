@@ -160,6 +160,7 @@ export default function Home() {
               mode={showCabinetSidebar ? "cabinet" : "default"}
               onOpenMentor={handleOpenMentor}
               collapsed={sidebarCollapsed}
+              canViewSpecialists={profile.role === "manager"}
             />
           </div>
         </div>

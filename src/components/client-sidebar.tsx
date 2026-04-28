@@ -27,6 +27,7 @@ interface ClientSidebarProps {
   mode?: "default" | "cabinet";
   onOpenMentor?: () => void;
   collapsed?: boolean;
+  canViewSpecialists?: boolean;
 }
 
 type SupabaseClient = {
@@ -114,6 +115,7 @@ export function ClientSidebar({
   mode = "default",
   onOpenMentor,
   collapsed = false,
+  canViewSpecialists = false,
 }: ClientSidebarProps) {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<ClientListItem[]>([]);
@@ -124,17 +126,29 @@ export function ClientSidebar({
   const [cabinetSection, setCabinetSection] = useState<"clients" | "specialists">("clients");
 
   useEffect(() => {
+    if (!canViewSpecialists && cabinetSection === "specialists") {
+      setCabinetSection("clients");
+    }
+  }, [canViewSpecialists, cabinetSection]);
+
+  useEffect(() => {
     const fetchSidebarData = async () => {
       setIsLoading(true);
       setFetchError(null);
 
+      const clientQuery = supabase.from("clients").select("id, name").order("name", { ascending: true });
+
+      const specialistQuery = canViewSpecialists
+        ? supabase
+            .from("profiles")
+            .select("id, first_name, last_name, role")
+            .eq("role", "smm_specialist")
+            .order("first_name", { ascending: true })
+        : Promise.resolve({ data: [], error: null });
+
       const [clientsResponse, specialistsResponse] = await Promise.all([
-        supabase.from("clients").select("id, name").order("name", { ascending: true }),
-        supabase
-          .from("profiles")
-          .select("id, first_name, last_name, role")
-          .eq("role", "smm_specialist")
-          .order("first_name", { ascending: true }),
+        clientQuery,
+        specialistQuery,
       ]);
 
       if (clientsResponse.error) {
@@ -186,7 +200,7 @@ export function ClientSidebar({
     };
 
     fetchSidebarData();
-  }, [onClientsLoaded]);
+  }, [onClientsLoaded, canViewSpecialists]);
 
   const filtered = useMemo(
     () =>
@@ -209,11 +223,13 @@ export function ClientSidebar({
   );
 
   if (mode === "cabinet") {
-    const visibleItems = cabinetSection === "clients" ? clients : filteredSpecialists;
+    const showSpecialistsSection = canViewSpecialists;
+    const visibleItems =
+      showSpecialistsSection && cabinetSection === "specialists" ? filteredSpecialists : clients;
     const sectionTitle =
-      cabinetSection === "clients"
-        ? `Все клиенты (${clients.length})`
-        : `SMM специалисты (${filteredSpecialists.length})`;
+      showSpecialistsSection && cabinetSection === "specialists"
+        ? `SMM специалисты (${filteredSpecialists.length})`
+        : `Все клиенты (${clients.length})`;
 
     return (
       <div className="w-full flex flex-col h-full bg-[#111111] border-r border-[#1E1E1E]">
@@ -228,7 +244,7 @@ export function ClientSidebar({
                   Личный кабинет
                 </h1>
                 <p className="text-[10px] text-[#6B7280] leading-tight">
-                  Клиенты и кабинеты команды
+                  {showSpecialistsSection ? "Клиенты и кабинеты команды" : "Мои клиенты"}
                 </p>
               </div>
             )}
@@ -257,58 +273,64 @@ export function ClientSidebar({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
                 <input
                   type="text"
-                  placeholder={cabinetSection === "clients" ? "Поиск клиентов..." : "Поиск специалистов..."}
+                  placeholder={
+                    showSpecialistsSection && cabinetSection === "specialists"
+                      ? "Поиск специалистов..."
+                      : "Поиск клиентов..."
+                  }
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-[#6B7280] focus:outline-none focus:border-[#3A3A3A] transition-colors"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setCabinetSection("clients")}
-                  className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
-                  style={{
-                    borderColor:
-                      cabinetSection === "clients" ? "rgba(56,189,248,0.35)" : "#2A2A2A",
-                    background:
-                      cabinetSection === "clients" ? "rgba(56,189,248,0.12)" : "#151515",
-                  }}
-                >
-                  <Briefcase
-                    className="h-4 w-4"
+              {showSpecialistsSection ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setCabinetSection("clients")}
+                    className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
                     style={{
-                      color: cabinetSection === "clients" ? "#38BDF8" : "#8B93A7",
+                      borderColor:
+                        cabinetSection === "clients" ? "rgba(56,189,248,0.35)" : "#2A2A2A",
+                      background:
+                        cabinetSection === "clients" ? "rgba(56,189,248,0.12)" : "#151515",
                     }}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-white">Клиенты</p>
-                    <p className="text-[11px] text-[#8B93A7]">Все компании</p>
-                  </div>
-                </button>
+                  >
+                    <Briefcase
+                      className="h-4 w-4"
+                      style={{
+                        color: cabinetSection === "clients" ? "#38BDF8" : "#8B93A7",
+                      }}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-white">Клиенты</p>
+                      <p className="text-[11px] text-[#8B93A7]">Все компании</p>
+                    </div>
+                  </button>
 
-                <button
-                  onClick={() => setCabinetSection("specialists")}
-                  className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
-                  style={{
-                    borderColor:
-                      cabinetSection === "specialists" ? "rgba(52,211,153,0.35)" : "#2A2A2A",
-                    background:
-                      cabinetSection === "specialists" ? "rgba(52,211,153,0.12)" : "#151515",
-                  }}
-                >
-                  <Users
-                    className="h-4 w-4"
+                  <button
+                    onClick={() => setCabinetSection("specialists")}
+                    className="flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all duration-200"
                     style={{
-                      color: cabinetSection === "specialists" ? "#34D399" : "#8B93A7",
+                      borderColor:
+                        cabinetSection === "specialists" ? "rgba(52,211,153,0.35)" : "#2A2A2A",
+                      background:
+                        cabinetSection === "specialists" ? "rgba(52,211,153,0.12)" : "#151515",
                     }}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-white">SMM специалисты</p>
-                    <p className="text-[11px] text-[#8B93A7]">Личные кабинеты</p>
-                  </div>
-                </button>
-              </div>
+                  >
+                    <Users
+                      className="h-4 w-4"
+                      style={{
+                        color: cabinetSection === "specialists" ? "#34D399" : "#8B93A7",
+                      }}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-white">SMM специалисты</p>
+                      <p className="text-[11px] text-[#8B93A7]">Личные кабинеты</p>
+                    </div>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </>
         )}
@@ -373,14 +395,14 @@ export function ClientSidebar({
             !collapsed && (
               <div className="px-5 py-8 text-center space-y-2">
                 <p className="text-sm text-[#6B7280]">
-                  {cabinetSection === "clients"
-                    ? "Нет клиентов"
-                    : "Нет зарегистрированных SMM-специалистов"}
+                  {showSpecialistsSection && cabinetSection === "specialists"
+                    ? "Нет зарегистрированных SMM-специалистов"
+                    : "Нет клиентов"}
                 </p>
                 <p className="text-xs text-[#8B93A7]">
-                  {cabinetSection === "clients"
-                    ? "Клиенты загрузятся здесь автоматически."
-                    : "Как только специалисты зарегистрированы, они появятся здесь."}
+                  {showSpecialistsSection && cabinetSection === "specialists"
+                    ? "Как только специалисты зарегистрированы, они появятся здесь."
+                    : "Клиенты загрузятся здесь автоматически."}
                 </p>
               </div>
             )
